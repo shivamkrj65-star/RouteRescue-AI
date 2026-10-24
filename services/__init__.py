@@ -5,6 +5,7 @@ from services.modal_search import (
     CabRoadSearchService,
     RailSearchService,
 )
+from services.recovery_engine import RecoveryEngine
 from services.transport_service import TransportDataService
 
 __all__ = [
@@ -12,4 +13,5 @@ __all__ = [
     "RailSearchService",
     "BusSearchService",
     "CabRoadSearchService",
+    "RecoveryEngine",
 ]

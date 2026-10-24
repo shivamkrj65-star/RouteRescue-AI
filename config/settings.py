@@ -66,6 +66,14 @@ class Settings(BaseModel):
             endpoint="http://127.0.0.1:8003/submit",
         )
     )
+    planner_agent: AgentEndpointConfig = Field(
+        default_factory=lambda: AgentEndpointConfig(
+            name="recovery_planner_agent",
+            seed="routerescue_recovery_planner_seed_v1",
+            port=8004,
+            endpoint="http://127.0.0.1:8004/submit",
+        )
+    )
 
     # Default timeout for agent messaging in seconds
     agent_message_timeout_seconds: float = 10.0

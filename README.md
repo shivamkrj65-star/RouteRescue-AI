@@ -4,7 +4,58 @@
 
 RouteRescue AI is an autonomous multimodal travel recovery platform designed to monitor travel disruptions across train, bus, and road networks, evaluate alternative routes, and synthesize optimal alternative journeys based on passenger constraints.
 
-This repository implements **Phase 1: Project Foundation** and **Phase 2: Independent Transport Agents**.
+This repository implements **Phase 1: Project Foundation**, **Phase 2: Independent Transport Agents**, and **Phase 3: Recovery Planner Agent**.
+
+---
+
+## 🧭 Phase 3: Recovery Planner Multi-Agent Coordination
+
+RouteRescue AI coordinates autonomous recovery using a dedicated **Recovery Planner Agent** that interacts directly with the modal search agents:
+
+1. **Recovery Planner Agent** (`recovery_planner_agent`):
+   - Cryptographic Address: `agent1q00zd0l68j6n3f450fhdtacxakj9ne7qlajl5nq6ldrsmadqx2r6x9gnfj9`
+   - Protocol: `RecoveryPlannerProtocol` (v1.0.0)
+   - Function: Receives `RecoveryRequest` messages, dispatches parallel `TransportSearchQuery` messages to Rail, Bus, and Cab agents, correlates responses asynchronously, handles offline timeouts, enforces hard user constraints, scores alternatives via deterministic multi-criteria utility functions, and replies with the top 3 ranked options and natural-language selection rationale.
+
+2. **Deterministic Recovery Engine** (`services/recovery_engine.py`):
+   - **Hard Constraint Enforcement:** Rejects alternatives departing before `earliest_departure`, arriving after `latest_acceptable_arrival`, exceeding `max_budget`, having sold-out seats, or exceeding `max_transfers`.
+   - **Multi-Criteria Scoring Function:**
+     $$S = w_{\text{time}} \cdot S_{\text{time}} + w_{\text{cost}} \cdot S_{\text{cost}} + w_{\text{reliability}} \cdot S_{\text{reliability}} + w_{\text{transfers}} \cdot S_{\text{transfers}}$$
+     - $S_{\text{time}}$: Normalized travel duration efficiency (faster transit gets higher score).
+     - $S_{\text{cost}}$: Cost economy normalized against budget ceiling (lower fare scores higher).
+     - $S_{\text{reliability}}$: Confidence weighting based on seat availability (`AVAILABLE`: 100, `FEW_SEATS`: 85, `ON_DEMAND`: 90, `RAC`: 50, `WAITLISTED`: 25).
+     - $S_{\text{transfers}}$: Direct route bonus (0 transfers: 100, 1 transfer: 70).
+   - **Explainable Recommendation Rationale:** Generates human-readable explanations detailing why Option #1 scored highest, its key operational strengths, and trade-off contrasts with Option #2 and Option #3.
+
+```
++----------------------------------------------------------------------------------------------------+
+|                                      Fetch.ai Multi-Agent Bureau                                   |
+|                                                                                                    |
+|    +-----------------------+                         +-----------------------------+               |
+|    |                       |    RecoveryRequest      |                             |               |
+|    |                       | ----------------------> |                             |               |
+|    |                       | <---------------------- |                             |               |
+|    |                       |    RecoveryResponse     |                             |               |
+|    |  Passenger / Client   |                         |   Recovery Planner Agent    |               |
+|    |         Agent         |                         |  (RecoveryPlannerProtocol)  |               |
+|    |                       |                         |                             |               |
+|    +-----------------------+                         +-----------------------------+               |
+|                                                                 |   ^   |                          |
+|                                            TransportSearchQuery |   |   | TransportSearchResult    |
+|                                                                 v   |   v                          |
+|                                          +---------------------------------------------+           |
+|                                          |                                             |           |
+|                               +--------------------+ +-------------------+ +---------------------+ |
+|                               | Rail Search Agent  | | Bus Search Agent  | | Cab & Road Agent    | |
+|                               | (RailSearchProto)  | | (BusSearchProto)  | | (CabRoadProto)      | |
+|                               +--------------------+ +-------------------+ +---------------------+ |
+|                                          |                     |                     |             |
+|                                          +---------------------+---------------------+             |
+|                                                                |                                   |
+|                                                                v                                   |
+|                                                  SQLite Transport Network DB                       |
++----------------------------------------------------------------------------------------------------+
+```
 
 ---
 
@@ -148,8 +199,8 @@ Populates the SQLite database (`data/routerescue.db`) with the demonstration tra
 python -m data.seed_data
 ```
 
-### 4. Run the Autonomous Transport Agents
-Start all three transport agents (Rail, Bus, and Cab) concurrently under the Fetch.ai Bureau:
+### 4. Run the Autonomous Multi-Agent System
+Start the complete multi-agent system (Rail, Bus, Cab, and Recovery Planner) concurrently under the Fetch.ai Bureau:
 ```bash
 python -m agents.runner
 ```
@@ -163,13 +214,16 @@ python -c "from agents.bus_agent import create_bus_agent; a = create_bus_agent()
 
 # Terminal 3 - Cab & Road Agent (port 8003)
 python -c "from agents.cab_agent import create_cab_agent; a = create_cab_agent(); a.run()"
+
+# Terminal 4 - Recovery Planner Agent (port 8004)
+python -c "from agents.recovery_planner_agent import create_recovery_planner_agent; a = create_recovery_planner_agent(); a.run()"
 ```
 
 ### 5. Run Automated Multi-Agent & Integration Test Suite
 ```bash
 pytest -v
 ```
-All 27 automated tests across unit and multi-agent integration suites will execute and verify schema compliance, dataset integrity, search functionality, and asynchronous agent-to-agent messaging.
+All 33 automated tests across unit and multi-agent integration suites will execute and verify schema compliance, dataset integrity, search functionality, constraint validation, scoring algorithms, and asynchronous agent-to-agent messaging.
 
 ### 6. Launch the FastAPI Backend
 ```bash
@@ -191,9 +245,10 @@ Open your browser at `http://localhost:8501` to explore available journeys, view
 ## 🧪 Testing Results
 
 Executed with `pytest -v`:
+- `tests/test_recovery_planner.py`: 6 tests passing (Hard constraint validation, deterministic multi-criteria scoring & ranking, natural-language explanation generation, full 5-agent uAgents messaging coordination, strict constraint rejection over messaging, and offline agent timeout resilience)
 - `tests/test_agents_integration.py`: 5 tests passing (Agent identities & cryptographic addresses, separated modal search services, asynchronous uAgents message passing across 3 agents, departure time & budget filtering, and empty results resilience)
 - `tests/test_schemas.py`: 6 tests passing (User journeys, booking status, disruptions, search models, recovery recommendations)
 - `tests/test_synthetic_datasets.py`: 6 tests passing (>= 30 trains, >= 30 buses, >= 20 cabs, >= 10 disruptions, timezone & overnight accounting, demo labeling)
 - `tests/test_transport_service.py`: 10 tests passing (origin/destination search, budget filtering, mode filtering, earliest departure, seat availability, overnight journeys, disruption checks, tradeoff summaries)
 
-**Result: 27 passed, 0 failed in 40.34s (100% pass rate).**
+**Result: 33 passed, 0 failed in 94.21s (100% pass rate).**

@@ -66,3 +66,72 @@ class TransportSearchResult(Model):
         default="Demonstration synthetic data for Fetch-A-Thon 3.0. No live bookings executed.",
         description="Integrity disclaimer",
     )
+
+
+class ScoringWeights(Model):
+    """Configurable weights for multi-criteria recovery ranking (must sum to ~1.0)."""
+    duration_weight: float = Field(default=0.40, description="Weight for journey speed / duration")
+    cost_weight: float = Field(default=0.30, description="Weight for fare economy vs budget")
+    reliability_weight: float = Field(default=0.20, description="Weight for seat availability & mode reliability")
+    transfer_weight: float = Field(default=0.10, description="Weight for minimizing transfers / directness")
+
+
+class RecoveryRequest(Model):
+    """Recovery planning request dispatched to the Recovery Planner Agent."""
+    request_id: str = Field(description="Unique correlation ID for tracing the recovery lifecycle")
+    origin: str = Field(description="Origin city name or station code (e.g. Delhi, NDLS)")
+    destination: str = Field(description="Destination city name or station code (e.g. Jaipur, JP)")
+    journey_date: Optional[str] = Field(default=None, description="ISO format date YYYY-MM-DD")
+    earliest_departure: Optional[str] = Field(default=None, description="ISO format time or datetime for earliest allowed departure")
+    latest_acceptable_arrival: Optional[str] = Field(default=None, description="ISO format time or datetime for hard arrival deadline")
+    max_budget: Optional[float] = Field(default=None, description="Hard budget ceiling in INR")
+    max_transfers: int = Field(default=1, description="Hard limit on allowable route transfers")
+    user_id: Optional[str] = Field(default=None, description="Associated passenger ID if known")
+    disrupted_service_id: Optional[str] = Field(default=None, description="Original disrupted service ID if triggered by disruption")
+    weights: Optional[ScoringWeights] = Field(default=None, description="Custom multi-criteria scoring weights")
+
+
+class RankedAlternative(Model):
+    """Ranked recovery alternative evaluated and scored by the Recovery Planner."""
+    rank: int = Field(description="Recovery ranking (1 = best, 2, 3)")
+    composite_score: float = Field(description="Overall normalized utility score (0.0 - 100.0)")
+    score_breakdown: dict = Field(
+        default_factory=dict,
+        description="Component scores e.g. duration_score, cost_score, reliability_score, transfer_score",
+    )
+    alternative: TransportSearchAlternative = Field(description="Underlying travel alternative")
+    selection_reason: str = Field(description="Option-specific justification")
+
+
+class RecoveryResponse(Model):
+    """Comprehensive recovery plan returned by the Recovery Planner Agent."""
+    request_id: str = Field(description="Correlating recovery request ID")
+    planner_address: str = Field(description="Cryptographic address of the Recovery Planner Agent")
+    success: bool = Field(description="Whether the recovery coordination succeeded")
+    origin: str = Field(description="Resolved origin location")
+    destination: str = Field(description="Resolved destination location")
+    total_options_evaluated: int = Field(default=0, description="Total alternatives received across modal agents")
+    valid_options_count: int = Field(default=0, description="Count of alternatives passing all hard constraints")
+    rejected_options_count: int = Field(default=0, description="Count of alternatives rejected by hard constraints")
+    rejection_reasons: dict = Field(
+        default_factory=dict,
+        description="Summary of rejection counts by constraint type",
+    )
+    top_3_options: List[RankedAlternative] = Field(
+        default_factory=list,
+        description="Top three recommended recovery options",
+    )
+    best_option_explanation: str = Field(
+        default="",
+        description="Detailed natural-language rationale explaining why the #1 option was selected",
+    )
+    modal_responses: dict = Field(
+        default_factory=dict,
+        description="Status summary from each modal agent (RAIL, BUS, CAB)",
+    )
+    error_message: Optional[str] = Field(default=None, description="Error explanation if coordination failed")
+    execution_time_ms: float = Field(default=0.0, description="End-to-end recovery planning latency in ms")
+    disclaimer: str = Field(
+        default="Synthetic demonstration recovery plan for Fetch-A-Thon 3.0. Booking requires explicit user authorization.",
+        description="Integrity and safety disclaimer",
+    )
