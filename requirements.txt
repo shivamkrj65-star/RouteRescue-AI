@@ -1,6 +1,7 @@
-# RouteRescue AI - Core Dependencies (Phase 1)
+# RouteRescue AI - Core Dependencies
 uagents>=0.26.0
 uagents-core>=0.4.11
+litellm>=1.40.0
 pydantic>=2.10.0
 fastapi>=0.115.0
 uvicorn>=0.34.0

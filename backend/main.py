@@ -3,14 +3,18 @@
 from typing import List, Optional
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel, Field
 
 from config.settings import settings
 from data.database import DatabaseManager
+from schemas.agent_messages import RecoveryRequest, RecoveryResponse
 from schemas.common import BookingStatus, TransportMode
 from schemas.disruption import DisruptionEvent, DisruptionInjectionPayload
 from schemas.search import TransportSearchRequest, TransportSearchResponse
 from schemas.travel import Location, TransportService, UserJourney
+from services.asione_service import AsiOneService
 from services.booking_provider import SimulatedBookingProvider
+from services.recovery_engine import RecoveryEngine
 from services.transport_service import TransportDataService
 
 app = FastAPI(
@@ -31,6 +35,60 @@ app.add_middleware(
 db = DatabaseManager()
 transport_service = TransportDataService(db=db)
 booking_provider = SimulatedBookingProvider()
+recovery_engine = RecoveryEngine()
+asione_service = AsiOneService()
+
+
+class RecoveryChatPayload(BaseModel):
+    message: str = Field(description="Conversational travel query or disruption statement")
+    origin: Optional[str] = Field(default=None, description="Optional explicit origin override")
+    destination: Optional[str] = Field(default=None, description="Optional explicit destination override")
+    max_budget: Optional[float] = Field(default=None, description="Optional explicit budget ceiling override")
+
+
+@app.post("/api/v1/recovery/chat", tags=["ASI:One & Recovery Planner"])
+async def recovery_chat(payload: RecoveryChatPayload):
+    """
+    Conversational travel recovery endpoint powered by ASI:One.
+    1. Converts conversational text into a structured RecoveryRequest.
+    2. Overrides fields if explicitly provided.
+    3. Invokes the core RecoveryEngine (multimodal routing, constraint validation, scoring).
+    4. Synthesizes an empathetic, grounded response strictly based on actual options.
+    """
+    # 1. Parse natural language instruction
+    req, used_llm = await asione_service.parse_instruction_to_request(payload.message)
+
+    # 2. Apply explicit overrides if supplied
+    if payload.origin:
+        req.origin = payload.origin
+    if payload.destination:
+        req.destination = payload.destination
+    if payload.max_budget is not None:
+        req.max_budget = payload.max_budget
+
+    # 3. Execute recovery planning workflow
+    recovery_resp = recovery_engine.process_recovery(
+        modal_results={},
+        request=req,
+        planner_address="http://127.0.0.1:8004/submit",
+    )
+
+    # 4. Generate grounded natural-language response
+    conversational_reply, reply_used_llm = await asione_service.generate_grounded_response(
+        request=req,
+        response=recovery_resp,
+        user_message=payload.message,
+    )
+
+    return {
+        "success": True,
+        "query": payload.message,
+        "parsed_request": req.dict() if hasattr(req, "dict") else req.model_dump(),
+        "recovery_response": recovery_resp.dict() if hasattr(recovery_resp, "dict") else recovery_resp.model_dump(),
+        "conversational_reply": conversational_reply,
+        "used_llm": used_llm or reply_used_llm,
+        "provider": "ASI:One (asi1-mini)" if (used_llm or reply_used_llm) else "RouteRescue NLP Engine (Deterministic Fallback)",
+    }
 
 
 @app.get("/health", tags=["System"])

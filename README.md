@@ -4,7 +4,33 @@
 
 RouteRescue AI is an autonomous multimodal travel recovery platform designed to monitor travel disruptions across train, bus, and road networks, evaluate alternative routes, and synthesize optimal alternative journeys based on passenger constraints.
 
-This repository implements **Phase 1: Project Foundation**, **Phase 2: Independent Transport Agents**, **Phase 3: Recovery Planner Agent**, **Phase 4: Autonomous Disruption Monitoring**, and **Phase 5: Intelligent Route Optimization**.
+This repository implements **Phase 1: Project Foundation**, **Phase 2: Independent Transport Agents**, **Phase 3: Recovery Planner Agent**, **Phase 4: Autonomous Disruption Monitoring**, **Phase 5: Intelligent Route Optimization**, and **Phase 6: ASI:One and Agentverse Integration**.
+
+---
+
+## 🤖 Phase 6: ASI:One and Agentverse Integration
+
+RouteRescue AI enables natural-language, conversational travel recovery powered by **ASI:One** and exposes the multi-agent system on **Fetch.ai Agentverse**:
+
+1. **Agent Chat Protocol Integration (`uagents_core.contrib.protocols.chat`)**:
+   - The Recovery Planner Agent implements Fetch.ai's official **Agent Chat Protocol** (`ChatMessage`, `TextContent`, `ChatAcknowledgement`).
+   - Supports bi-directional conversational interaction with human passengers, Agentverse Chat UI, and ASI:One.
+   - Dual-protocol architecture: seamlessly handles both structured agent-to-agent `RecoveryRequest` messages (from Disruption Monitor) and natural-language `ChatMessage` envelopes (from Agentverse and ASI:One).
+
+2. **ASI:One Conversational Engine (`services/asione_service.py`)**:
+   - **Instruction Parsing:** Converts unstructured user instructions (e.g. *"My train 12015 from Delhi to Jaipur got cancelled, find me a way to reach by 6 PM under 1500 INR"*) into validated `RecoveryRequest` objects.
+   - **Grounded Response Generation:** Synthesizes clear, empathetic explanations strictly grounded in the verified alternatives from the Recovery Planner.
+   - **Zero-Fabrication Anti-Hallucination Guardrails:** Never invents transit services, non-existent routes, fake fares, or fabricated booking confirmations.
+   - **Deterministic Fallback Engine:** If ASI:One is unconfigured or temporarily offline, the system seamlessly degrades to a deterministic regex and keyword-based NLP parser and template generator, ensuring 100% uptime for core recovery operations.
+
+3. **Agentverse Discovery & Mailbox Registration**:
+   - Registered on Agentverse with handle `@routerescue_planner`, starter prompts, profile description, and published manifest (`RecoveryPlannerProtocol` + `chat_protocol_spec`).
+   - Supports local deployment with Agentverse Mailbox (`mailbox=True`) without exposing inbound ports.
+   - Complete deployment and registration guide documented in [`docs/agentverse_deployment.md`](file:///c:/Users/Shivam/OneDrive/Documents/Route Rescue AI/docs/agentverse_deployment.md).
+
+4. **FastAPI & Streamlit Conversational Frontends**:
+   - REST API endpoint: `POST /api/v1/recovery/chat` accepts natural language prompts and returns structured recovery data alongside conversational responses.
+   - Streamlit Console includes an interactive **"🤖 ASI:One Travel Assistant"** tab for real-time conversation and quick-prompt evaluation.
 
 ---
 
@@ -324,7 +350,12 @@ python -c "from agents.disruption_monitor_agent import create_disruption_monitor
 ```bash
 pytest -v
 ```
-All 46 automated tests across unit, integration, route optimization, and multi-agent suites will execute and verify schema compliance, dataset integrity, search functionality, constraint validation, scoring algorithms, periodic monitoring, multimodal time-dependent routing, and autonomous recovery triggering.
+All 55 automated tests across unit, integration, route optimization, ASI:One conversation, and multi-agent suites will execute and verify schema compliance, dataset integrity, search functionality, constraint validation, scoring algorithms, periodic monitoring, multimodal time-dependent routing, Agent Chat Protocol (`ChatMessage`), and autonomous recovery triggering.
+
+To run the live integration test with your real ASI:One credentials:
+```bash
+pytest -v tests/test_asione_agentverse.py -k "test_live_asione_api_integration"
+```
 
 ### 6. Launch the FastAPI Backend
 ```bash

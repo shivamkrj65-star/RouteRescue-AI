@@ -3,6 +3,7 @@
 import os
 from datetime import timedelta, timezone
 from pathlib import Path
+from typing import Optional
 from pydantic import BaseModel, Field
 
 # Project Root Directory
@@ -95,6 +96,18 @@ class Settings(BaseModel):
     corridor_region: str = "Northern India (Delhi, Jaipur, Chandigarh, Agra)"
     is_demo_mode: bool = True
     synthetic_label: str = "DEMONSTRATION SYNTHETIC DATASET (Fetch-A-Thon 3.0)"
+
+    # ASI:One LLM Configuration
+    asione_api_key: Optional[str] = Field(default_factory=lambda: os.getenv("ASI1_API_KEY"))
+    asione_base_url: str = Field(default_factory=lambda: os.getenv("ASI1_BASE_URL", "https://api.asi1.ai/v1"))
+    asione_model: str = Field(default_factory=lambda: os.getenv("ASI1_MODEL", "asi1-mini"))
+
+    # Agentverse Configuration
+    agentverse_api_key: Optional[str] = Field(default_factory=lambda: os.getenv("AGENTVERSE_API_KEY"))
+    agentverse_mailbox: bool = Field(
+        default_factory=lambda: os.getenv("AGENTVERSE_MAILBOX", "false").lower() in ("true", "1", "yes")
+    )
+    agentverse_url: str = Field(default_factory=lambda: os.getenv("AGENTVERSE_URL", "https://agentverse.ai"))
 
 
 settings = Settings()

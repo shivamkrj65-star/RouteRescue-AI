@@ -5,6 +5,8 @@ from datetime import datetime, date, time
 from config.settings import IST, settings
 from data.database import DatabaseManager
 from schemas.common import TransportMode
+from services.asione_service import AsiOneService
+from services.recovery_engine import RecoveryEngine
 from services.transport_service import TransportDataService
 
 st.set_page_config(
@@ -44,7 +46,12 @@ available_only = st.sidebar.checkbox("Available Seats Only", value=True)
 search_clicked = st.sidebar.button("Search Alternative Journeys", use_container_width=True)
 
 # Main Dashboard Tabs
-tab_search, tab_disruptions, tab_passenger = st.tabs(["🛣️ Available Journeys", "🚨 Active Disruptions", "👤 Passenger Recovery Monitor"])
+tab_search, tab_disruptions, tab_passenger, tab_assistant = st.tabs([
+    "🛣️ Available Journeys",
+    "🚨 Active Disruptions",
+    "👤 Passenger Recovery Monitor",
+    "🤖 ASI:One Travel Assistant",
+])
 
 with tab_search:
     st.subheader(f"Search Results: {origin_city} ➔ {destination_city}")
@@ -105,3 +112,56 @@ with tab_passenger:
         st.write(f"**Booked Train:** {journey.booked_service.service_number} ({journey.booked_service.origin.name} ➔ {journey.booked_service.destination.name})")
         st.error(f"**Status:** {journey.booking_status.value} (Track Maintenance near Alwar)")
         st.write(f"**PNR Reference:** `{journey.booking_reference}` | **Paid Fare:** ₹{journey.booked_fare_inr:.0f}")
+
+with tab_assistant:
+    st.subheader("🤖 ASI:One Conversational Disruption Recovery")
+    st.caption("Ask questions naturally: report a cancelled service, request recovery alternatives, or set custom budget/arrival limits.")
+
+    asione_svc = AsiOneService()
+    recovery_eng = RecoveryEngine()
+
+    status_badge = "🟢 Live (ASI:One Configured)" if asione_svc.is_configured else "🟡 Local NLP Fallback (Deterministic Mode)"
+    st.caption(f"Provider Status: **{status_badge}** | Model: `{asione_svc.model}`")
+
+    # Example starter prompts
+    st.markdown("**Quick Prompts:**")
+    prompt_cols = st.columns(3)
+    p1 = "My train 12015 from Delhi to Jaipur was cancelled. Find me options under 1500 INR before 6 PM."
+    p2 = "Find the fastest route from Chandigarh to Jaipur tonight."
+    p3 = "I'm stuck in Delhi, need to reach Agra by 11 AM under 1000 INR."
+
+    selected_prompt = None
+    if prompt_cols[0].button("⚠️ Delhi ➔ Jaipur (Cancelled)", use_container_width=True):
+        selected_prompt = p1
+    if prompt_cols[1].button("⚡ Chandigarh ➔ Jaipur (Fastest)", use_container_width=True):
+        selected_prompt = p2
+    if prompt_cols[2].button("⏱️ Delhi ➔ Agra (Under 1000)", use_container_width=True):
+        selected_prompt = p3
+
+    user_query = st.chat_input("Describe your travel disruption or travel need...")
+    active_input = selected_prompt or user_query
+
+    if "chat_history" not in st.session_state:
+        st.session_state["chat_history"] = []
+
+    for item in st.session_state["chat_history"]:
+        with st.chat_message(item["role"]):
+            st.markdown(item["content"])
+
+    if active_input:
+        with st.chat_message("user"):
+            st.markdown(active_input)
+        st.session_state["chat_history"].append({"role": "user", "content": active_input})
+
+        with st.chat_message("assistant"):
+            with st.spinner("Analyzing disruption & synthesizing multimodal recovery..."):
+                # Run parse
+                req = asione_svc.parse_with_deterministic_rules(active_input)
+                rec_resp = recovery_eng.process_recovery(
+                    modal_results={},
+                    request=req,
+                    planner_address="recovery_planner_agent",
+                )
+                reply = asione_svc.generate_deterministic_explanation(req, rec_resp)
+                st.markdown(reply)
+                st.session_state["chat_history"].append({"role": "assistant", "content": reply})
