@@ -1,445 +1,359 @@
-# RouteRescue AI 🚆🚌🚗✈️
+# RouteRescue AI 🚆🚌🚗
 
-**Autonomous Multimodal Travel Disruption Recovery System for Fetch-A-Thon 3.0**
+[![Fetch.ai](https://img.shields.io/badge/Fetch.ai-uAgents%200.17+-blue?logo=fetch.ai)](https://fetch.ai)
+[![Fetch-A-Thon 3.0](https://img.shields.io/badge/Hackathon-Fetch--A--Thon%203.0-orange)](https://fetch.ai)
+[![Innovation Lab](https://img.shields.io/badge/Track-Innovation%20Lab-purple)](https://fetch.ai)
+[![ASI:One](https://img.shields.io/badge/ASI%3AOne-Integrated-cyan)](https://asi1.ai)
+[![Agentverse](https://img.shields.io/badge/Agentverse-Ready-green)](https://agentverse.ai)
+[![Tests](https://img.shields.io/badge/Tests-74%20Passed%2C%201%20Skipped-success)](tests/)
+[![Python](https://img.shields.io/badge/Python-3.11%20%7C%203.12%20%7C%203.13-blue)](https://python.org)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-RouteRescue AI is an autonomous multimodal travel recovery platform designed to monitor travel disruptions across train, bus, and road networks, evaluate alternative routes, and synthesize optimal alternative journeys based on passenger constraints.
-
-This repository implements **Phase 1: Project Foundation**, **Phase 2: Independent Transport Agents**, **Phase 3: Recovery Planner Agent**, **Phase 4: Autonomous Disruption Monitoring**, **Phase 5: Intelligent Route Optimization**, **Phase 6: ASI:One and Agentverse Integration**, and **Phase 7: Streamlit Dashboard and Backend Integration**.
-
----
-
-## 🖥️ Phase 7: Streamlit Dashboard & Backend Integration
-
-RouteRescue AI provides an interactive, modern, multi-page **Streamlit Dashboard** connected directly to the FastAPI backend (`http://127.0.0.1:8000`), allowing users to register journeys, inject simulated disruptions, observe live multi-agent execution, receive multimodal recovery plans, and authorize booking handoffs:
-
-### 📱 Dashboard Navigation & Pages
-1. **📊 Dashboard**:
-   - Live metrics summary: Active Journeys, Disrupted Count, Confirmed Trips, Active Travel Alerts.
-   - Interactive journey monitor with status filtering (`CONFIRMED`, `CANCELLED_BY_DISRUPTION`, `DELAYED`, `WAITLISTED`, `RAC`).
-   - One-click "Recover Journey 🚀" navigation for impacted passengers.
-   - Active corridor alerts feed and monitoring daemon status (polling frequency, delay thresholds, override counts).
-
-2. **📝 Journey Registration**:
-   - Comprehensive form for passenger registration and transit selection (Delhi, Jaipur, Chandigarh, Agra, etc.).
-   - Granular constraints configuration: Maximum budget ceiling (INR), arrival deadline, and transfer preferences (Direct, 1 transfer, Multimodal).
-   - Direct integration with `POST /api/v1/journeys` and persistent SQLite logging.
-
-3. **🤖 Agent Activity**:
-   - Real-time audit log of actual agent-to-agent operations and messages (no hardcoded frontend mockups).
-   - Filterable by agent role: `RecoveryPlannerAgent`, `DisruptionMonitorAgent`, `ModalSearchAgents`, `PassengerGateway`, `BookingHandoffAgent`, etc.
-   - Deep inspection expanders displaying request IDs, execution latency, message correlation tokens, and raw payloads.
-
-4. **🧭 Recovery Results**:
-   - **Structured Recovery Planner**: Evaluates direct and multimodal alternatives, displaying Rank #1 recommendation (with multimodal leg breakdown, layovers, and grounded rationale) alongside Rank #2 and #3 backups.
-   - **ASI:One Conversational Assistant**: Natural language dialogue tab allowing conversational queries grounded in verified transit data.
-   - One-click handoff button transferring selected itineraries directly into the booking authorization portal.
-
-5. **🎛️ Demo Controls**:
-   - **One-Click Demonstration Scenarios**:
-     - *💥 Train Cancellation*: Simulates overhead wire snap for Rohan Sharma (TRN-12015).
-     - *⏱️ Severe Delay*: Injects 120m delay for Priya Patel on Vande Bharat (TRN-20978).
-     - *📉 Waitlist Drop*: Injects post-charting waitlist cancellation for Neha Gupta (TRN-12004).
-   - **Custom Disruption Injection**: Adjust status, delay minutes (slider), PNR position, charting status, and reason via `POST /api/v1/disruptions/inject`.
-   - **Demonstration Reset**: 1-click baseline reset clearing all status overrides and restoring seeded demo records via `POST /api/v1/demo/reset`.
-
-6. **🎟️ Booking Handoff**:
-   - Provider portal links (IRCTC, Zingbus, Uber, NueGo).
-   - **Mandatory User Consent**: Safety guardrail requiring an explicit authorization checkbox before confirming recovery passes.
-   - Clear distinction between synthetic demonstration simulation and live financial debiting.
-
-### 🌐 Added Backend Endpoints (`backend/main.py`)
-- `POST /api/v1/journeys`: Registers passenger journeys subjected to autonomous monitoring.
-- `POST /api/v1/recovery/plan`: Direct multimodal recovery planning endpoint.
-- `GET /api/v1/agents/activity`: Retrieves structured agent audit events and actions from SQLite.
-- `POST /api/v1/bookings/approve`: User-authorized booking handoff requiring explicit consent.
-- `POST /api/v1/demo/reset`: Resets simulated booking overrides and re-seeds baseline demonstration records.
+> **Autonomous Multimodal Travel Disruption Recovery System**  
+> *Turning travel cancellations, severe delays, and waitlist drops into seamless, user-authorized multimodal journeys powered by Fetch.ai uAgents, Agentverse, and ASI:One.*
 
 ---
 
-## 🤖 Phase 6: ASI:One and Agentverse Integration
+## 📖 Table of Contents
 
-RouteRescue AI enables natural-language, conversational travel recovery powered by **ASI:One** and exposes the multi-agent system on **Fetch.ai Agentverse**:
-
-1. **Agent Chat Protocol Integration (`uagents_core.contrib.protocols.chat`)**:
-   - The Recovery Planner Agent implements Fetch.ai's official **Agent Chat Protocol** (`ChatMessage`, `TextContent`, `ChatAcknowledgement`).
-   - Supports bi-directional conversational interaction with human passengers, Agentverse Chat UI, and ASI:One.
-   - Dual-protocol architecture: seamlessly handles both structured agent-to-agent `RecoveryRequest` messages (from Disruption Monitor) and natural-language `ChatMessage` envelopes (from Agentverse and ASI:One).
-
-2. **ASI:One Conversational Engine (`services/asione_service.py`)**:
-   - **Instruction Parsing:** Converts unstructured user instructions (e.g. *"My train 12015 from Delhi to Jaipur got cancelled, find me a way to reach by 6 PM under 1500 INR"*) into validated `RecoveryRequest` objects.
-   - **Grounded Response Generation:** Synthesizes clear, empathetic explanations strictly grounded in the verified alternatives from the Recovery Planner.
-   - **Zero-Fabrication Anti-Hallucination Guardrails:** Never invents transit services, non-existent routes, fake fares, or fabricated booking confirmations.
-   - **Deterministic Fallback Engine:** If ASI:One is unconfigured or temporarily offline, the system seamlessly degrades to a deterministic regex and keyword-based NLP parser and template generator, ensuring 100% uptime for core recovery operations.
-
-3. **Agentverse Discovery & Mailbox Registration**:
-   - Registered on Agentverse with handle `@routerescue_planner`, starter prompts, profile description, and published manifest (`RecoveryPlannerProtocol` + `chat_protocol_spec`).
-   - Supports local deployment with Agentverse Mailbox (`mailbox=True`) without exposing inbound ports.
-   - Complete deployment and registration guide documented in [`docs/agentverse_deployment.md`](file:///c:/Users/Shivam/OneDrive/Documents/Route Rescue AI/docs/agentverse_deployment.md).
-
-4. **FastAPI & Streamlit Conversational Frontends**:
-   - REST API endpoint: `POST /api/v1/recovery/chat` accepts natural language prompts and returns structured recovery data alongside conversational responses.
-   - Streamlit Console includes an interactive **"🤖 ASI:One Travel Assistant"** tab for real-time conversation and quick-prompt evaluation.
-
----
-
-## 🔀 Phase 5: Intelligent Multimodal Route Optimization
-
-RouteRescue AI incorporates a schedule-aware multimodal routing engine using **NetworkX (`MultiDiGraph`)** that evaluates direct services and time-dependent multi-leg connections while enforcing realistic transfer constraints:
-
-1. **Multimodal Router Engine** (`services/multimodal_router.py`):
-   - **Time-Dependent Transit Graph:** Models transit hubs as nodes (15 transit hubs across Delhi, Gurugram, Noida, Jaipur, Chandigarh, Ambala, Mathura, Agra) and scheduled rail, bus, and road services as directed edges with exact timestamps, fares, and seat status.
-   - **Supported Journey Patterns:**
-     - Direct routes (0 transfers): `DIRECT_TRAIN`, `DIRECT_BUS`, `DIRECT_CAB`.
-     - Multimodal routes (1+ transfers): `CAB + TRAIN`, `CAB + BUS`, `TRAIN + BUS`, `TRAIN + CAB`.
-   - **Realistic Transfer Buffer Enforcement:**
-     - **Same-Hub Transfers (e.g. at NDLS, JP, UMB, AGC):** Requires a minimum of **20 minutes** buffer.
-     - **Inter-Terminal Transfers in Same City (e.g. NDLS to DEL_ISBT in Delhi, JP to JAI_BUS in Jaipur):** Requires a minimum of **40 minutes** buffer.
-     - **Impossible Transfers:** Transfers with layover < required buffer or exceeding maximum layover cap (360 minutes / 6 hours) are strictly rejected.
-   - **Overnight & Midnight Journey Accounting:** Accurate elapsed transit duration calculation for sleeper trains and night buses that cross midnight.
-   - **Accurate Cost & Estimation Distinction:** Clearly identifies verified scheduled ticket fares vs estimated on-demand road fares (`has_estimated_costs=True`).
-
-2. **Multimodal Coordination & Explainable Recommendations:**
-   - Evaluates direct modal search results from Rail, Bus, and Cab agents alongside dynamically discovered multimodal transit paths.
-   - Computes deterministic multi-criteria utility ranking based on configurable weights (duration, cost economy, reliability, transfer penalty).
-   - Generates natural-language rationale with leg-by-leg breakdowns, transfer hub identification, layover durations, and cost breakdowns.
-
-```
-+----------------------------------------------------------------------------------------------------------------+
-|                                    Time-Dependent Multimodal Routing Graph                                     |
-|                                                                                                                |
-|    Gurugram (GGN)                                                                                              |
-|          |                                                                                                     |
-|     (Cab | 40m, Rs. 350)                                                                                       |
-|          v                                                                                                     |
-|    New Delhi (NDLS) ------------ (Shatabdi Express | 140m, Rs. 480) -----------> Ambala Cantt (UMB)            |
-|          |                                                                               |                     |
-|    (Same-City Transfer:                                                             (Same-Hub Transfer:        |
-|     NDLS -> DEL_ISBT >= 40m)                                                         >= 20m buffer)            |
-|          v                                                                               v                     |
-|    Delhi ISBT (DEL_ISBT) ------- (Zingbus Volvo | 310m, Rs. 550) ------> Jaipur     Chandigarh ISBT (CDG_BUS)  |
-|                                                                          (JP)                                  |
-+----------------------------------------------------------------------------------------------------------------+
-```
+1. [Project Overview & Tagline](#1-project-overview--tagline)
+2. [Problem Statement](#2-problem-statement)
+3. [Proposed Solution](#3-proposed-solution)
+4. [Target Users](#4-target-users)
+5. [Why an Autonomous AI Agent (Not Just a Chatbot)](#5-why-an-autonomous-ai-agent-not-just-a-chatbot)
+6. [Multi-Agent System Architecture](#6-multi-agent-system-architecture)
+7. [The Five Autonomous Agents](#7-the-five-autonomous-agents)
+8. [ASI:One Natural Language Integration](#8-asione-natural-language-integration)
+9. [Agentverse Mailbox & Discovery Integration](#9-agentverse-mailbox--discovery-integration)
+10. [Agent Chat Protocol (ACP) Implementation](#10-agent-chat-protocol-acp-implementation)
+11. [Agentverse Agent Details & Public Addresses](#11-agentverse-agent-details--public-addresses)
+12. [Technology Stack](#12-technology-stack)
+13. [Installation & Setup](#13-installation--setup)
+14. [Environment Configuration](#14-environment-configuration)
+15. [Startup & Execution Commands](#15-startup--execution-commands)
+16. [Demonstration Walkthrough](#16-demonstration-walkthrough)
+17. [Automated Verification & Tests](#17-automated-verification--tests)
+18. [Simulated Data & Safety Boundaries](#18-simulated-data--safety-boundaries)
+19. [Real-World Applications](#19-real-world-applications)
+20. [Future Scope & Roadmap](#20-future-scope--roadmap)
 
 ---
 
-## ⚡ Phase 4: Autonomous Disruption Monitoring & Alert System
+## 1. Project Overview & Tagline
 
-RouteRescue AI actively monitors passenger bookings stored in SQLite, detects disruptions using an **APScheduler** background daemon, and autonomously triggers multimodal recovery without requiring manual passenger intervention:
+**RouteRescue AI** is an autonomous multi-agent platform designed to continuously protect passenger journeys against unforeseen travel disruptions. When a train is cancelled, an express bus delayed by fog, or a post-charting waitlist dropped, RouteRescue AI orchestrates specialized transport agents (Rail, Bus, and Road) to compute optimal multimodal alternative itineraries and presents them to passengers with grounded rationale, requiring explicit user authorization before any booking handoff.
 
-1. **Disruption Monitor Agent** (`disruption_monitor_agent`):
-   - Cryptographic Address: `agent1qv3g7x4v5rqq970n3a25yq26u2w2p4s82v90h3qj7n04d6v8l3k2m6y8pql`
-   - Protocol: `DisruptionMonitorProtocol` (v1.0.0)
-   - Function: Periodically scans active bookings, queries the simulated booking provider, evaluates operational conditions, deduplicates events, and dispatches `RecoveryRequest` messages to the Recovery Planner Agent.
+---
 
-2. **Simulated Live Booking Provider** (`services/booking_provider.py`):
-   - Implements realistic operational transit status tracking:
-     - `CONFIRMED`: Normal operating status.
-     - `RAC`: Reservation Against Cancellation (berth shared / seat confirmed).
-     - `WAITLISTED`: Waitlisted position tracking (e.g. WL 14).
-     - `DELAYED`: Tracked service delays with configurable escalation buckets (e.g. 45m, 90m, 120m).
-     - `CANCELLED`: Outright train, bus, or road cancellation.
-     - `DROPPED_CHART_PREPARED`: Waitlist tickets dropped after final chart finalization.
+## 2. Problem Statement
 
-3. **Disruption Evaluator & Deduplication** (`services/disruption_evaluator.py`):
-   - **Automated Trigger Rules:** Automatically initiates recovery when:
-     - A service is `CANCELLED`
-     - A delay meets or exceeds the qualifying threshold (`delay_minutes >= 45`)
-     - A waitlisted booking is dropped after chart finalization (`DROPPED_CHART_PREPARED`)
-     - A waitlist ticket remains unconfirmed when charting closes (`WAITLISTED` with `chart_prepared=True`)
-   - **Deduplication Engine:** Generates unique idempotency keys (`{journey_id}::{reason_code}`) preventing duplicate recovery requests across repeated scheduler ticks.
+In developing travel ecosystems like India, millions of passengers rely on rail and intercity buses daily. When severe disruptions occur (cancellations, engine failures, dense winter fog, derailments, or waitlists dropped after chart preparation):
+- **Fragmented Search:** Passengers are stranded scrambling between separate railway apps (IRCTC), multiple private bus aggregators (RedBus, Zingbus), and cab operators (Uber, Savaari).
+- **Time Pressure:** Finding a viable alternative within a tight budget and arrival deadline before remaining tickets sell out is stressful and error-prone.
+- **Cognitive Overload:** Evaluating multimodal combinations (e.g. cab to intermediate station + express train) manually is almost impossible under time pressure.
 
-4. **Accelerated Demonstration Mode & Disruption Injection API:**
-   - **Demo Mode:** APScheduler poll frequency accelerates to 1.0s (configurable) for rapid demonstration and automated testing.
-   - **Disruption Injection API (`POST /api/v1/disruptions/inject`):** Allows simulated operational incidents (cancellations, delays, waitlist drops) to be injected dynamically via REST API.
+---
 
-```
-+----------------------------------------------------------------------------------------------------+
-|                                    Fetch.ai Multi-Agent Bureau                                     |
-|                                                                                                    |
-|    +-----------------------------+                       +-----------------------------+           |
-|    |                             |    RecoveryRequest    |                             |           |
-|    |                             | --------------------> |                             |           |
-|    |                             | <-------------------- |                             |           |
-|    |                             |   RecoveryResponse    |   Recovery Planner Agent    |           |
-|    |  Disruption Monitor Agent   |                       |  (RecoveryPlannerProtocol)  |           |
-|    | (DisruptionMonitorProtocol) |                       |                             |           |
-|    |                             |                       +-----------------------------+           |
-|    +-----------------------------+                                      |                          |
-|             ^             |                                             |                          |
-|  APScheduler|             v                                             |                          |
-|  (Interval) |     SQLite Audit Log                                      v                          |
-|             |   (monitoring_logs)                        +-----------------------------+           |
-|             |                                            |   Modal Transport Agents    |           |
-|   +-----------------------+                              |     (Rail, Bus, Cab)        |           |
-|   |  Simulated Provider   |                              +-----------------------------+           |
-|   |   (Live PNR Status)   |                                                                        |
-|   +-----------------------+                                                                        |
-+----------------------------------------------------------------------------------------------------+
+## 3. Proposed Solution
+
+RouteRescue AI resolves this friction through **proactive multi-agent autonomy**:
+1. **Continuous Monitoring:** The Disruption Monitor agent autonomously tracks active journeys without requiring the user to refresh apps.
+2. **Instant Multi-Agent Coordination:** Upon detecting a qualifying disruption, the Recovery Planner immediately dispatches parallel search queries to independent Rail, Bus, and Cab agents.
+3. **Intelligent Constraint Validation:** The planner rejects options exceeding the passenger's budget, missing arrival deadlines, or requiring impossible connection buffers (< 30 minutes).
+4. **Transparent Scoring & Explanation:** The system ranks feasible itineraries using a composite multi-criteria algorithm and synthesizes natural-language explanations.
+5. **Secure Booking Handoff:** Complies strictly with safety principles—no automatic financial charges. Generates provider deep links with explicit passenger authorization.
+
+---
+
+## 4. Target Users
+
+- **Daily & Intercity Commuters:** Frequent business travelers on high-density corridors (Delhi-Jaipur, Chandigarh-Delhi, Delhi-Agra) with strict meeting deadlines.
+- **Long-Distance Rail Passengers:** Travelers with Waitlisted (WL) or RAC tickets vulnerable to post-chart drops.
+- **Family & Group Travelers:** Passengers needing budget-conscious, low-transfer alternatives when public transit fails.
+- **Corporate Travel Desks:** Automated disruption sentinels protecting employee itineraries without manual human monitoring.
+
+---
+
+## 5. Why an Autonomous AI Agent (Not Just a Chatbot)
+
+| Dimension | Typical Travel Chatbot | RouteRescue AI Autonomous Multi-Agent |
+|:---|:---|:---|
+| **Initiative** | Purely reactive (waits for user prompt) | **Proactive Sentinel:** Detects cancellations via background schedulers and triggers recovery autonomously. |
+| **Architecture** | Single LLM prompt with brittle function calling | **Decoupled Multi-Agent Bureau:** Separate agents with cryptographic identities for Rail, Bus, Cab, and Recovery Planning. |
+| **Communication** | Direct in-memory function calls | **Cryptographic uAgents Protocols:** Structured asynchronous message exchanges with correlation IDs and timeouts. |
+| **Constraint Solving** | LLM hallucinated prices and timings | **Deterministic Routing Engine:** Rigorous time-dependent network algorithms enforcing budget and buffer math. |
+| **Safety & Consent** | May fabricate booking confirmations | **Zero Unsolicited Bookings:** Strict user consent boundary before provider handoff. |
+
+---
+
+## 6. Multi-Agent System Architecture
+
+```mermaid
+flowchart TD
+    subgraph Passenger Interfaces
+        UI["Streamlit Dashboard (Port 8501)"]
+        Chat["ASI:One Conversational Interface"]
+    end
+
+    subgraph Agentverse & External Discovery
+        AV["Agentverse Mailbox / Discovery Service"]
+        ACP["RouteRescue ACP Agent Interface"]
+    end
+
+    subgraph Autonomous Disruption Monitoring
+        Provider[("Simulated Booking Provider / NTES")]
+        Monitor["Disruption Monitor Agent (agent1q26t8...)"]
+        DB[("Persistent SQLite DB (routerescue.db)")]
+    end
+
+    subgraph Multi-Agent Core Bureau
+        Planner["Recovery Planner Agent (agent1q00zd0...)"]
+        RailAgent["Rail Search Agent (agent1qtufey...)"]
+        BusAgent["Bus Search Agent (agent1qtr5z8...)"]
+        CabAgent["Cab & Road Search Agent (agent1qwms6s...)"]
+    end
+
+    subgraph Routing & Optimization Engine
+        Optimizer["Multimodal Router & Scoring Engine (NetworkX)"]
+        Synthesizer["Grounded Explanation Synthesizer"]
+    end
+
+    subgraph User Authorization & Handoff
+        Handoff["Booking Handoff Portal (IRCTC, Zingbus, Uber)"]
+    end
+
+    Chat -->|Natural Language Prompt| AV
+    AV -->|ACP Message| ACP
+    ACP -->|RecoveryRequest| Planner
+    UI -->|REST API| Planner
+
+    Provider -->|Status Updates| Monitor
+    Monitor -->|Reads Active Journeys| DB
+    Monitor -->|Autonomous Trigger: DisruptionEvent| Planner
+
+    Planner -->|TransportSearchQuery: Rail| RailAgent
+    Planner -->|TransportSearchQuery: Bus| BusAgent
+    Planner -->|TransportSearchQuery: Cab| CabAgent
+
+    RailAgent -->|TransportSearchResult| Planner
+    BusAgent -->|TransportSearchResult| Planner
+    CabAgent -->|TransportSearchResult| Planner
+
+    Planner -->|Candidate Alternatives| Optimizer
+    Optimizer -->|Ranked Itineraries & Feasibility| Synthesizer
+    Synthesizer -->|RecoveryResponse & Explanation| Planner
+
+    Planner -->|Display Top 3 Options| UI
+    Planner -->|Conversational Grounded Reply| Chat
+    UI -->|Explicit Passenger Consent| Handoff
 ```
 
 ---
 
-## 🧭 Phase 3: Recovery Planner Multi-Agent Coordination
+## 7. The Five Autonomous Agents
 
-RouteRescue AI coordinates autonomous recovery using a dedicated **Recovery Planner Agent** that interacts directly with the modal search agents:
+Each agent runs with its own identity, cryptographic keypair, and separated search logic:
 
-1. **Recovery Planner Agent** (`recovery_planner_agent`):
-   - Cryptographic Address: `agent1q00zd0l68j6n3f450fhdtacxakj9ne7qlajl5nq6ldrsmadqx2r6x9gnfj9`
-   - Protocol: `RecoveryPlannerProtocol` (v1.0.0)
-   - Function: Receives `RecoveryRequest` messages, dispatches parallel `TransportSearchQuery` messages to Rail, Bus, and Cab agents, correlates responses asynchronously, handles offline timeouts, enforces hard user constraints, scores alternatives via deterministic multi-criteria utility functions, and replies with the top 3 ranked options and natural-language selection rationale.
-
-2. **Deterministic Recovery Engine** (`services/recovery_engine.py`):
-   - **Hard Constraint Enforcement:** Rejects alternatives departing before `earliest_departure`, arriving after `latest_acceptable_arrival`, exceeding `max_budget`, having sold-out seats, or exceeding `max_transfers`.
-   - **Multi-Criteria Scoring Function:**
-     $$S = w_{\text{time}} \cdot S_{\text{time}} + w_{\text{cost}} \cdot S_{\text{cost}} + w_{\text{reliability}} \cdot S_{\text{reliability}} + w_{\text{transfers}} \cdot S_{\text{transfers}}$$
-     - $S_{\text{time}}$: Normalized travel duration efficiency (faster transit gets higher score).
-     - $S_{\text{cost}}$: Cost economy normalized against budget ceiling (lower fare scores higher).
-     - $S_{\text{reliability}}$: Confidence weighting based on seat availability (`AVAILABLE`: 100, `FEW_SEATS`: 85, `ON_DEMAND`: 90, `RAC`: 50, `WAITLISTED`: 25).
-     - $S_{\text{transfers}}$: Direct route bonus (0 transfers: 100, 1 transfer: 70).
-   - **Explainable Recommendation Rationale:** Generates human-readable explanations detailing why Option #1 scored highest, its key operational strengths, and trade-off contrasts with Option #2 and Option #3.
-
-```
-+----------------------------------------------------------------------------------------------------+
-|                                      Fetch.ai Multi-Agent Bureau                                   |
-|                                                                                                    |
-|    +-----------------------+                         +-----------------------------+               |
-|    |                       |    RecoveryRequest      |                             |               |
-|    |                       | ----------------------> |                             |               |
-|    |                       | <---------------------- |                             |               |
-|    |                       |    RecoveryResponse     |                             |               |
-|    |  Passenger / Client   |                         |   Recovery Planner Agent    |               |
-|    |         Agent         |                         |  (RecoveryPlannerProtocol)  |               |
-|    |                       |                         |                             |               |
-|    +-----------------------+                         +-----------------------------+               |
-|                                                                 |   ^   |                          |
-|                                            TransportSearchQuery |   |   | TransportSearchResult    |
-|                                                                 v   |   v                          |
-|                                          +---------------------------------------------+           |
-|                                          |                                             |           |
-|                               +--------------------+ +-------------------+ +---------------------+ |
-|                               | Rail Search Agent  | | Bus Search Agent  | | Cab & Road Agent    | |
-|                               | (RailSearchProto)  | | (BusSearchProto)  | | (CabRoadProto)      | |
-|                               +--------------------+ +-------------------+ +---------------------+ |
-|                                          |                     |                     |             |
-|                                          +---------------------+---------------------+             |
-|                                                                |                                   |
-|                                                                v                                   |
-|                                                  SQLite Transport Network DB                       |
-+----------------------------------------------------------------------------------------------------+
-```
+1. **Rail Search Agent (`rail_search_agent`)**
+   - **Address:** `agent1qtufeyud8v0qxul3khlyrl7pj2r5yhwp2tjvv0lcllgvgl8q80fqc926c5f`
+   - **Port:** `8001`
+   - **Function:** Queries train services (Shatabdi, Rajdhani, Vande Bharat, Express, Sleepers). Filters by departure time, seat class, and maximum budget.
+2. **Bus Search Agent (`bus_search_agent`)**
+   - **Address:** `agent1qtr5z8d67nr7d89cfh06wu6gvra62rpsrrm8l7qmm2rk6nl8c487wfj6pql`
+   - **Port:** `8002`
+   - **Function:** Queries intercity bus operators (NueGo Electric, Zingbus, IntrCity SmartBus, RSRTC Volvo).
+3. **Cab & Road Search Agent (`cab_road_search_agent`)**
+   - **Address:** `agent1qwms6se8lkj7n3c5tazq9rjvt0lxp8lz6j9skgkug93z6k6fr5pqystzd0v`
+   - **Port:** `8003`
+   - **Function:** Evaluates highway cab operators (Uber Intercity, Savaari) and station-connection shuttles (BluSmart).
+4. **Recovery Planner Agent (`recovery_planner_agent`)**
+   - **Address:** `agent1q00zd0l68j6n3f450fhdtacxakj9ne7qlajl5nq6ldrsmadqx2r6x9gnfj9`
+   - **Port:** `8004`
+   - **Function:** Central coordinator. Coordinates modal agents via uAgents messaging, correlates results using request tokens, executes constraint validation, scores feasible itineraries, and outputs grounded explanations.
+5. **Disruption Monitor Agent (`disruption_monitor_agent`)**
+   - **Address:** `agent1q26t8s8y3sfex8yqmcmu37khd6a7l55wjalk84vvrdxu0f8h494tjqfpgee`
+   - **Port:** `8005`
+   - **Function:** Background sentinel. Uses APScheduler to poll passenger bookings, applies disruption evaluation heuristics, suppresses duplicate events, and autonomously dispatches `RecoveryRequest` messages.
 
 ---
 
-## 🤖 Phase 2: Autonomous Transport Agents Architecture
+## 8. ASI:One Natural Language Integration
 
-RouteRescue AI deploys three autonomous search agents built with the **Fetch.ai uAgents** framework:
-
-1. **Rail Search Agent** (`rail_search_agent`):
-   - Cryptographic Address: `agent1q2r3529s3309a9w0cwhd8zfqv5952l4g2u8j6t6075908d0yq8c9x5p6v69`
-   - Protocol: `RailSearchProtocol` (v1.0.0)
-   - Function: Autonomously receives `TransportSearchQuery` messages, executes train searches against synthetic datasets, and replies with structured `TransportSearchResult` messages containing ranked train alternatives.
-2. **Bus Search Agent** (`bus_search_agent`):
-   - Cryptographic Address: `agent1qv3l4q397s4e48k29p6qg9y867zfcgpx8z2d2df26c5j6vd2whn9xwq5mcu`
-   - Protocol: `BusSearchProtocol` (v1.0.0)
-   - Function: Evaluates intercity bus routes across operators (electric AC, sleeper, Volvo, state roadways), evaluating availability and luggage allowances.
-3. **Cab & Road Search Agent** (`cab_road_search_agent`):
-   - Cryptographic Address: `agent1qw82a2cfhsk88339p857gsw4h65z2cr2f6f58p83g6dqwqj3whu5xej5msr`
-   - Protocol: `CabRoadSearchProtocol` (v1.0.0)
-   - Function: Evaluates point-to-point road travel, expressway transfers, and on-demand cab connections.
-
-```
-+-----------------------------------------------------------------------------------------+
-|                                    Fetch.ai Bureau                                      |
-|                                                                                         |
-|   +-----------------------+   TransportSearchQuery    +-----------------------------+   |
-|   |                       | ------------------------> |      Rail Search Agent      |   |
-|   |                       | <------------------------ |     (RailSearchProtocol)    |   |
-|   |                       |   TransportSearchResult   +-----------------------------+   |
-|   |                       |                                                             |
-|   |  Coordinator / Client |   TransportSearchQuery    +-----------------------------+   |
-|   |         Agent         | ------------------------> |       Bus Search Agent      |   |
-|   |                       | <------------------------ |     (BusSearchProtocol)     |   |
-|   |                       |   TransportSearchResult   +-----------------------------+   |
-|   |                       |                                                             |
-|   |                       |   TransportSearchQuery    +-----------------------------+   |
-|   |                       | ------------------------> |   Cab & Road Search Agent   |   |
-|   |                       | <------------------------ |   (CabRoadSearchProtocol)   |   |
-|   +-----------------------+   TransportSearchResult   +-----------------------------+   |
-+-----------------------------------------------------------------------------------------+
-```
-
-### Key Agent Engineering Highlights:
-- **Clean Decoupling:** Modal search logic (`services/modal_search.py`) is completely separated from communication protocol code (`agents/*.py`).
-- **Cryptographic Identities & Addresses:** Each agent has deterministic Ed25519 cryptographic keypairs generated from seeds.
-- **Asynchronous uAgents Messaging:** True agent-to-agent message passing using `ctx.send(...)` and typed Pydantic models.
-- **Request ID Correlation:** All message schemas include `request_id` to correlate asynchronous queries across distributed agents.
-- **Resilience & Timeouts:** Handles empty results, impossible budget caps, and network timeouts cleanly.
+RouteRescue AI integrates **ASI:One** for natural language interaction:
+- **Conversational Parameter Extraction:** Converts passenger inputs (e.g. *"My train was cancelled, need to reach Jaipur before 11 PM under ₹1,500"*) into validated structured `RecoveryRequest` payloads using LiteLLM.
+- **Conversational Follow-ups:** Handles budget modifications (*"What if I reduce my budget to ₹1,000?"*), priority updates (*"Show the fastest route"*), and transfer preferences.
+- **Grounded Response Generation:** Explanations are strictly grounded in actual verified itineraries. No hallucinated trains or prices.
+- **Deterministic Offline Fallback:** If `ASI1_API_KEY` is not present, an internal regex-based NLU engine takes over seamlessly with zero latency.
 
 ---
 
-## 🏛️ Project Architecture & Directory Layout
+## 9. Agentverse Mailbox & Discovery Integration
 
-The project follows a clean, modular structure:
-
-```
-Route Rescue AI/
-├── config/                     # Configuration and environment settings
-│   ├── __init__.py
-│   └── settings.py             # Settings (IST timezone, SQLite path, API ports)
-├── schemas/                    # Shared Pydantic data models
-│   ├── __init__.py
-│   ├── common.py               # Enums (TransportMode, BookingStatus, SeatAvailability)
-│   ├── travel.py               # Location, TransportService, UserJourney
-│   ├── disruption.py           # DisruptionEvent schema
-│   └── search.py               # Search requests, alternatives, recovery recommendations
-├── data/                       # Synthetic datasets & SQLite persistence
-│   ├── __init__.py
-│   ├── synthetic_network.py    # Delhi, Jaipur, Chandigarh, Agra corridor network
-│   ├── database.py             # Thread-safe SQLite DatabaseManager
-│   └── seed_data.py            # Dataset seeder
-│   └── routerescue.db          # SQLite database
-├── services/                   # Business logic and transport search engine
-│   ├── __init__.py
-│   └── transport_service.py    # TransportDataService (multimodal filtering & tradeoffs)
-├── backend/                    # FastAPI REST API
-│   ├── __init__.py
-│   └── main.py                 # Endpoints (/health, /search, /disruptions, /journeys)
-├── frontend/                   # Streamlit Interactive Console
-│   ├── __init__.py
-│   └── app.py                  # Live dashboard & recovery view
-├── agents/                     # [Phase 3] Fetch.ai uAgents multi-agent system
-│   ├── __init__.py
-│   └── README.md               # Agent specifications and uAgents protocol plan
-├── tests/                      # Automated test suite
-│   ├── conftest.py             # Pytest fixtures and isolated temporary databases
-│   ├── test_schemas.py         # Schema validation & serialization tests
-│   ├── test_synthetic_datasets.py # Dataset integrity, counts & overnight checks
-│   └── test_transport_service.py  # Transport search & filtering tests
-├── .env.example                # Example environment variables
-├── requirements.txt            # Dependency specification
-├── pyproject.toml              # Build & test configuration
-└── README.md                   # Documentation
-```
+- **Mailbox Protocol:** Agents can be hosted locally behind NAT/firewalls while maintaining constant connectivity to the decentralized Fetch.ai network via Agentverse Mailbox endpoints.
+- **Public Discovery:** The Recovery Planner exposes its manifest and schema on Agentverse, allowing other ecosystem agents to discover its travel recovery capabilities.
+- **Detailed Registration Guide:** Complete instructions are documented in [`docs/agentverse_deployment.md`](docs/agentverse_deployment.md).
 
 ---
 
-## 🗺️ Demonstration Transport Network
+## 10. Agent Chat Protocol (ACP) Implementation
 
-The demonstration network is centered around the Northern India Golden Transit Triangle:
-- **Delhi & NCR**: New Delhi Railway Station (`NDLS`), Hazrat Nizamuddin (`NZM`), Kashmere Gate ISBT (`DEL_ISBT`), Indira Gandhi International Airport (`DEL_AIR`), Gurugram (`GGN`), Noida (`NOI`).
-- **Jaipur**: Jaipur Junction (`JP`), Sindhi Camp Bus Stand (`JAI_BUS`), Jaipur Airport (`JAI_AIR`).
-- **Chandigarh**: Chandigarh Junction (`CDG`), ISBT Sector 43 (`CDG_BUS`), Ambala Cantt (`UMB`).
-- **Agra**: Agra Cantt (`AGC`), Idgah Bus Terminal (`AGR_BUS`), Mathura Junction (`MTJ`).
-
-### Synthetic Dataset Guarantees:
-- **34 Train Services**: Shatabdi, Vande Bharat, Rajdhani, Jan Shatabdi, Intercity, intermediate connectors (NDLS->UMB, NDLS->MTJ), and overnight sleepers.
-- **34 Intercity Bus Services**: Zingbus, IntrCity SmartBus, NueGo Electric AC, RSRTC Gold Line, Haryana Roadways Volvo, UPSRTC Janrath, intermediate shuttles (UMB->CDG, MTJ->AGR).
-- **23 Cab and Road Connections**: Uber Intercity, BluSmart Electric, Savaari Car Rentals, and intra-city terminal transfers (GGN->NDLS, GGN->DEL_ISBT).
-- **10 Simulated Disruption Scenarios**: Winter fog delays, track maintenance cancellations, overhead equipment failure, Yamuna Expressway gridlock, and airport ATC delay programs.
-- **Data Integrity**: Every record includes exact departure/arrival times (with timezone awareness in `Asia/Kolkata` IST), distance, fare in INR, seat availability, provider name, direct booking URL, overnight flags, and explicit demonstration labels.
+RouteRescue AI implements the **Agent Chat Protocol (ACP)** on the Recovery Planner agent:
+- Handled messages conform to standard ACP conversation schemas (`chat_message`, `context_id`, `reply`).
+- Bridges conversational platforms (such as the Agentverse Chat UI and ASI:One chat consoles) directly into the multi-agent travel recovery pipeline.
 
 ---
 
-## 🚀 Getting Started
+## 11. Agentverse Agent Details & Public Addresses
 
-### 1. Prerequisites
-- Python 3.11, 3.12, or 3.13
+| Agent Name | Role | Address | Protocol |
+|:---|:---|:---|:---|
+| `routerescue_recovery_planner` | Recovery Orchestrator | `agent1q00zd0l68j6n3f450fhdtacxakj9ne7qlajl5nq6ldrsmadqx2r6x9gnfj9` | `RecoveryPlanningProtocol`, `ACP` |
+| `routerescue_rail_agent` | Rail Search | `agent1qtufeyud8v0qxul3khlyrl7pj2r5yhwp2tjvv0lcllgvgl8q80fqc926c5f` | `RailSearchProtocol` |
+| `routerescue_bus_agent` | Bus Search | `agent1qtr5z8d67nr7d89cfh06wu6gvra62rpsrrm8l7qmm2rk6nl8c487wfj6pql` | `BusSearchProtocol` |
+| `routerescue_cab_agent` | Road/Cab Search | `agent1qwms6se8lkj7n3c5tazq9rjvt0lxp8lz6j9skgkug93z6k6fr5pqystzd0v` | `CabSearchProtocol` |
+| `routerescue_disruption_monitor` | Disruption Sentinel | `agent1q26t8s8y3sfex8yqmcmu37khd6a7l55wjalk84vvrdxu0f8h494tjqfpgee` | `DisruptionMonitoringProtocol` |
+
+---
+
+## 12. Technology Stack
+
+- **Multi-Agent Framework:** Fetch.ai `uAgents` (v0.17+), `uagents-core`
+- **Agent Registry & Messaging:** Agentverse, Agent Chat Protocol (ACP)
+- **Natural Language & LLMs:** ASI:One, `litellm` (with local deterministic fallback)
+- **Backend API:** FastAPI, Uvicorn, Pydantic v2
+- **Frontend Dashboard:** Streamlit (v1.40+)
+- **Routing & Optimization:** NetworkX, Pure Python deterministic constraint validator
+- **Background Scheduling:** APScheduler (v3.10+)
+- **Database:** SQLite with full audit logging
+- **Testing & Verification:** Pytest, Pytest-Asyncio, HTTPX
+
+---
+
+## 13. Installation & Setup
+
+### Prerequisites
+- Python 3.10 to 3.13
 - Git
 
-### 2. Setup Virtual Environment
-```bash
-# Clone or navigate to the repository
+### Installation Steps
+```powershell
+# 1. Clone repository
+git clone https://github.com/your-username/RouteRescue-AI.git
 cd "Route Rescue AI"
 
-# Create virtual environment
+# 2. Create virtual environment
 python -m venv .venv
 
-# Activate virtual environment
-# Windows PowerShell:
+# 3. Activate virtual environment
+# Windows:
 .\.venv\Scripts\Activate.ps1
-# Linux / macOS:
-# source .venv/bin/activate
+# Linux/macOS:
+source .venv/bin/activate
 
-# Install dependencies
+# 4. Install dependencies
 pip install -r requirements.txt
 ```
 
-### 3. Seed Synthetic Database
-Populates the SQLite database (`data/routerescue.db`) with the demonstration transport network:
-```bash
-python -m data.seed_data
+---
+
+## 14. Environment Configuration
+
+Copy `.env.example` to `.env`:
+```powershell
+Copy-Item .env.example .env
 ```
 
-### 4. Run the Autonomous Multi-Agent System
-Start the complete 5-agent system (Rail, Bus, Cab, Recovery Planner, and Disruption Monitor) concurrently under the Fetch.ai Bureau:
-```bash
-python -m agents.runner
+Configuration parameters:
+```ini
+# Application Mode
+APP_ENV=development
+LOG_LEVEL=INFO
+
+# ASI:One API Configuration (Optional: fallback engine active if unset)
+ASI1_API_KEY=your_asione_key_here
+ASI1_BASE_URL=https://api.asi1.ai/v1
+ASI1_MODEL=asi1-mini
+
+# Agentverse Configuration (Optional: local bureau active if unset)
+AGENTVERSE_API_KEY=your_agentverse_key_here
+AGENTVERSE_MAILBOX=false
+AGENTVERSE_URL=https://agentverse.ai
 ```
-Or run each agent independently in its own process:
-```bash
-# Terminal 1 - Rail Agent (port 8001)
-python -c "from agents.rail_agent import create_rail_agent; a = create_rail_agent(); a.run()"
-
-# Terminal 2 - Bus Agent (port 8002)
-python -c "from agents.bus_agent import create_bus_agent; a = create_bus_agent(); a.run()"
-
-# Terminal 3 - Cab & Road Agent (port 8003)
-python -c "from agents.cab_agent import create_cab_agent; a = create_cab_agent(); a.run()"
-
-# Terminal 4 - Recovery Planner Agent (port 8004)
-python -c "from agents.recovery_planner_agent import create_recovery_planner_agent; a = create_recovery_planner_agent(); a.run()"
-
-# Terminal 5 - Disruption Monitor Agent (port 8005)
-python -c "from agents.disruption_monitor_agent import create_disruption_monitor_agent; a = create_disruption_monitor_agent(); a.run()"
-```
-
-### 5. Run Automated Multi-Agent & Integration Test Suite
-```bash
-pytest -v
-```
-All 55 automated tests across unit, integration, route optimization, ASI:One conversation, and multi-agent suites will execute and verify schema compliance, dataset integrity, search functionality, constraint validation, scoring algorithms, periodic monitoring, multimodal time-dependent routing, Agent Chat Protocol (`ChatMessage`), and autonomous recovery triggering.
-
-To run the live integration test with your real ASI:One credentials:
-```bash
-pytest -v tests/test_asione_agentverse.py -k "test_live_asione_api_integration"
-```
-
-### 6. Launch the FastAPI Backend
-```bash
-uvicorn backend.main:app --host 127.0.0.1 --port 8000 --reload
-```
-Interactive API documentation will be available at:
-- Swagger UI: `http://127.0.0.1:8000/docs`
-- Redoc: `http://127.0.0.1:8000/redoc`
-
-Test disruption injection via REST API:
-```bash
-curl -X POST http://127.0.0.1:8000/api/v1/disruptions/inject \
-  -H "Content-Type: application/json" \
-  -d '{"journey_id": "JRN-PRIYA-1002", "status": "CANCELLED", "reason": "Overhead equipment breakdown"}'
-```
-
-### 7. Launch the Streamlit Frontend Console
-In a separate terminal (with the virtual environment activated):
-```bash
-streamlit run frontend/app.py --server.port 8501
-```
-Open your browser at `http://localhost:8501` to explore available journeys, view active disruption alerts, and inspect passenger recovery profiles.
 
 ---
 
-## 🧪 Testing Results
+## 15. Startup & Execution Commands
 
-Executed with `pytest -v`:
-- `tests/test_dashboard_backend.py`: 8 tests passing (FastAPI backend health, journey registration with automatic PNR & monitoring link, multimodal recovery planning endpoint, structured agent activity logs, booking approval user consent guardrail, successful booking handoff, baseline demo reset, and full end-to-end dashboard recovery flow)
-- `tests/test_asione_agentverse.py`: 7 tests passing, 1 skipped live CI test (Deterministic NLP fallback parsing, ASI:One structured parser, zero-fabrication grounded response synthesis, ungrounded/zero-options handling, Agent Chat Protocol `ChatMessage` exchange, conversational endpoint)
-- `tests/test_route_optimization.py`: 7 tests passing (Cheapest route, fastest route, overnight sleeper journeys, impossible transfer buffer rejection, insufficient budget rejection, no-alternatives fallback, and 5-agent multimodal coordination)
-- `tests/test_disruption_monitor.py`: 6 tests passing (Simulated booking status provider lifecycle, disruption evaluation rules, duplicate disruption event prevention, cancellation and delay monitoring detection, full autonomous recovery activation workflow, and FastAPI disruption injection endpoint)
-- `tests/test_recovery_planner.py`: 6 tests passing (Hard constraint validation, deterministic multi-criteria scoring & ranking, natural-language explanation generation, full 5-agent uAgents messaging coordination, strict constraint rejection over messaging, and offline agent timeout resilience)
-- `tests/test_agents_integration.py`: 5 tests passing (Agent identities & cryptographic addresses, separated modal search services, asynchronous uAgents message passing across 3 agents, departure time & budget filtering, and empty results resilience)
-- `tests/test_schemas.py`: 6 tests passing (User journeys, booking status, disruptions, search models, recovery recommendations)
-- `tests/test_synthetic_datasets.py`: 6 tests passing (>= 30 trains, >= 30 buses, >= 20 cabs, >= 10 disruptions, timezone & overnight accounting, demo labeling)
-- `tests/test_transport_service.py`: 10 tests passing (origin/destination search, budget filtering, mode filtering, earliest departure, seat availability, overnight journeys, disruption checks, tradeoff summaries)
+### Launch Everything with One Command
+```powershell
+.\.venv\Scripts\python.exe scripts/start_all.py
+```
+This automatically spins up:
+- **FastAPI Backend:** [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
+- **Fetch.ai Multi-Agent Bureau:** Port `8010`
+- **Streamlit Web Application:** [http://localhost:8501](http://localhost:8501)
 
-**Result: 62 passed, 1 skipped (live ASI:One test in CI) across all 9 test suites.**
+### Run System Health Check
+```powershell
+.\.venv\Scripts\python.exe scripts/health_check.py
+```
+
+---
+
+## 16. Demonstration Walkthrough
+
+To run the automated Step 4 & 5 Hackathon Demonstration script:
+```powershell
+.\.venv\Scripts\python.exe scripts/run_demo.py
+```
+
+### Scenario Flow:
+1. **Passenger Registration:** Priya Sharma registers Delhi -> Jaipur (`WAITLISTED` WL 18, Budget ₹1,500, Arrival before 23:00).
+2. **Disruption Detected:** Simulated booking provider fires a `CANCELLED` event.
+3. **Multi-Agent Coordination:** Recovery Planner queries Rail, Bus, and Cab agents simultaneously.
+4. **Intelligent Optimization:** Expensive cabs (₹3,600) and late arrivals are rejected. **NueGo Electric Bus (₹520)** is recommended with composite score 83.6/100.
+5. **Booking Handoff:** Passenger reviews alternatives and explicitly authorizes handoff to provider portal.
+6. **ASI:One Follow-up:** Passenger asks *"What if I reduce my budget to Rs. 1,000?"* — system immediately adapts constraints and synthesizes grounded advice.
+
+Full step-by-step presentation script is in [`DEMO.md`](DEMO.md).
+
+---
+
+## 17. Automated Verification & Tests
+
+Run the complete 75-test automated test suite:
+```powershell
+.\.venv\Scripts\pytest.exe -v
+```
+
+All 74 automated tests pass with 100% success rate (1 skipped in CI when no live external key is set). Detailed breakdown in [`TEST_REPORT.md`](TEST_REPORT.md).
+
+---
+
+## 18. Simulated Data & Safety Boundaries
+
+- **Demonstration Scope:** The system operates over a realistic synthetic dataset of 90 transport services across 15 transit hubs in Northern India (Delhi, Jaipur, Chandigarh, Agra, Gurugram, Noida, Mathura, Ambala).
+- **Safety Guarantee:** RouteRescue AI will **never** automatically debit funds or book tickets. It strictly generates authorized handoff deep links.
+- **Labels:** All demonstration data is clearly tagged with `DEMONSTRATION SYNTHETIC DATASET (Fetch-A-Thon 3.0)`.
+
+---
+
+## 19. Real-World Applications
+
+- **IRCTC & OTA Disruption Add-on:** Can be integrated as an intelligent recovery widget in booking portals.
+- **Corporate Mobility Resiliency:** Protects executive business trips against missed meetings and flight connections.
+- **Airport & Rail Transit Hubs:** Deployed as kiosks to help stranded passengers find connecting buses or carpools.
+
+---
+
+## 20. Future Scope & Roadmap
+
+- **Live IRCTC & GDS API Connectors:** Replace synthetic providers with official commercial GDS APIs.
+- **Dynamic Group Carpooling Agent:** An autonomous negotiating agent that groups stranded passengers heading to the same city to share private cab costs.
+- **Inter-Agent Micro-Payments:** Autonomous seat reservation hold deposits powered by Fetch.ai native FET tokens.
+
+---
+
+## 📄 License
+
+This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
