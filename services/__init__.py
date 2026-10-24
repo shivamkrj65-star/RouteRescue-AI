@@ -7,6 +7,12 @@ from services.modal_search import (
     CabRoadSearchService,
     RailSearchService,
 )
+from services.multimodal_router import (
+    JourneyLeg,
+    MultimodalItinerary,
+    MultimodalRouter,
+    TransferPoint,
+)
 from services.recovery_engine import RecoveryEngine
 from services.transport_service import TransportDataService
 
@@ -15,6 +21,10 @@ __all__ = [
     "RailSearchService",
     "BusSearchService",
     "CabRoadSearchService",
+    "MultimodalRouter",
+    "MultimodalItinerary",
+    "JourneyLeg",
+    "TransferPoint",
     "RecoveryEngine",
     "SimulatedBookingProvider",
     "SimulatedBookingStatus",

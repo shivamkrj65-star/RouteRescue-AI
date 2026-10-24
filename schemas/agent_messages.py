@@ -41,6 +41,10 @@ class TransportSearchAlternative(Model):
     available_seats_count: Optional[int] = Field(default=None, description="Seat count if available")
     booking_url: Optional[str] = Field(default=None, description="Booking URL if supported")
     is_overnight: bool = Field(default=False, description="Overnight journey indicator")
+    transfers_count: int = Field(default=0, description="Total transfers count (0 for direct routes, 1 for two legs)")
+    journey_pattern: str = Field(default="DIRECT", description="Journey pattern e.g. DIRECT_TRAIN, CAB+TRAIN, CAB+BUS, TRAIN+BUS")
+    legs_summary: Optional[str] = Field(default=None, description="Leg-by-leg multimodal connection summary")
+    has_estimated_costs: bool = Field(default=False, description="True if fares include on-demand cab estimates")
     tradeoffs: str = Field(description="Human-readable tradeoff evaluation")
     data_label: str = Field(
         default="DEMONSTRATION SYNTHETIC DATASET (Fetch-A-Thon 3.0)",

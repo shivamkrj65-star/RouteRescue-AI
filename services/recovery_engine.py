@@ -7,8 +7,8 @@ Decoupled pure Python business logic for RouteRescue AI's Recovery Planner:
 4. Synthesizes a natural-language explanation detailing why the highest-ranked alternative was chosen.
 """
 
-from datetime import datetime, time as dt_time
-from typing import Dict, List, Optional, Tuple
+from datetime import datetime, time as dt_time, timedelta
+from typing import Any, Dict, List, Optional, Tuple
 
 from schemas.agent_messages import (
     RankedAlternative,
@@ -56,8 +56,21 @@ class RecoveryEngine:
         "SOLD_OUT": 0.0,
     }
 
-    def __init__(self, default_weights: Optional[ScoringWeights] = None):
+    def __init__(
+        self,
+        default_weights: Optional[ScoringWeights] = None,
+        multimodal_router: Optional[Any] = None,
+    ):
         self.default_weights = default_weights or ScoringWeights()
+        if multimodal_router is None:
+            try:
+                from services.multimodal_router import MultimodalRouter
+
+                self.multimodal_router = MultimodalRouter()
+            except Exception:
+                self.multimodal_router = None
+        else:
+            self.multimodal_router = multimodal_router
 
     def validate_and_filter(
         self,
@@ -117,14 +130,18 @@ class RecoveryEngine:
                 rejection_reasons["arrived_after_latest_deadline"] += 1
                 continue
             elif req_arr_time and not req_arr_dt:
-                # Deadline is anchored to the departure date of the journey
-                deadline_dt = datetime.combine(alt_dep_dt.date(), req_arr_time, tzinfo=alt_arr_dt.tzinfo)
+                # Deadline is anchored to the departure date, unless it is an overnight journey arriving next day
+                if (getattr(alt, "is_overnight", False) or alt_arr_dt.date() > alt_dep_dt.date()) and req_arr_time < alt_dep_dt.time():
+                    deadline_dt = datetime.combine(alt_arr_dt.date(), req_arr_time, tzinfo=alt_arr_dt.tzinfo)
+                else:
+                    deadline_dt = datetime.combine(alt_dep_dt.date(), req_arr_time, tzinfo=alt_arr_dt.tzinfo)
+
                 if alt_arr_dt > deadline_dt or alt_dep_dt >= deadline_dt:
                     rejection_reasons["arrived_after_latest_deadline"] += 1
                     continue
 
-            # 5. Transfers check (point-to-point services count as 0 transfers)
-            transfers = 0
+            # 5. Transfers check
+            transfers = getattr(alt, "transfers_count", 0)
             if transfers > request.max_transfers:
                 rejection_reasons["transfers_exceeded_maximum_allowed"] += 1
                 continue
@@ -177,8 +194,12 @@ class RecoveryEngine:
             # 3. Reliability Score (0.0 to 100.0)
             reliability_score = self.RELIABILITY_SCORES.get(alt.seat_availability, 60.0)
 
-            # 4. Transfer Score (direct routes get 100.0)
-            transfer_score = 100.0
+            # 4. Transfer Score (0 transfers gets 100.0; each transfer incurs a modest penalty)
+            transfers = getattr(alt, "transfers_count", 0)
+            if transfers == 0:
+                transfer_score = 100.0
+            else:
+                transfer_score = max(0.0, 100.0 - (transfers * 30.0))
 
             # Composite weighted utility score
             composite = (
@@ -212,12 +233,17 @@ class RecoveryEngine:
             dur_h = alt.duration_minutes // 60
             dur_m = alt.duration_minutes % 60
             dur_str = f"{dur_h}h {dur_m}m" if dur_h > 0 else f"{dur_m}m"
+            transfers = getattr(alt, "transfers_count", 0)
 
             if i == 1:
+                transfer_note = f", {transfers} transfer(s)" if transfers > 0 else ", direct"
                 reason = (
                     f"Optimal overall recovery: top composite score ({score:.1f}/100), "
-                    f"travel time {dur_str}, fare INR {alt.fare_inr:,.0f}, status {alt.seat_availability}."
+                    f"travel time {dur_str}, fare INR {alt.fare_inr:,.0f}, status {alt.seat_availability}{transfer_note}."
                 )
+            elif transfers > 0:
+                pattern = getattr(alt, "journey_pattern", "MULTIMODAL")
+                reason = f"Multimodal {pattern} route with {transfers} transfer ({dur_str}, INR {alt.fare_inr:,.0f})."
             elif alt.mode == "TRAIN":
                 reason = f"High-capacity rail alternative with direct corridor connection ({dur_str})."
             elif alt.mode == "BUS":
@@ -281,6 +307,12 @@ class RecoveryEngine:
         if strengths:
             explanation_parts.append(f"This journey excels due to its {', '.join(strengths)}.")
 
+        # Multimodal connection summary if applicable
+        if getattr(alt, "transfers_count", 0) > 0 and getattr(alt, "legs_summary", None):
+            explanation_parts.append(f"Connection itinerary: {alt.legs_summary}.")
+        if getattr(alt, "has_estimated_costs", False):
+            explanation_parts.append("Note: Journey includes on-demand road legs with estimated fares.")
+
         # Comparison with Rank 2 and 3 if available
         if len(ranked_options) > 1:
             second = ranked_options[1]
@@ -327,6 +359,26 @@ class RecoveryEngine:
             }
             if result.success and result.results:
                 all_alternatives.extend(result.results)
+
+        # 1b. Discover multimodal connections if transfers are permitted
+        if self.multimodal_router is not None and request.max_transfers >= 1:
+            try:
+                multimodal_itineraries = self.multimodal_router.find_routes(
+                    origin=request.origin,
+                    destination=request.destination,
+                    earliest_departure=request.earliest_departure,
+                    latest_arrival=request.latest_acceptable_arrival,
+                    max_budget=None,
+                    max_transfers=request.max_transfers,
+                )
+                existing_service_ids = {a.service_id for a in all_alternatives}
+                for itin in multimodal_itineraries:
+                    alt = itin.to_alternative()
+                    if alt.service_id not in existing_service_ids:
+                        all_alternatives.append(alt)
+                        existing_service_ids.add(alt.service_id)
+            except Exception:
+                pass
 
         total_evaluated = len(all_alternatives)
 

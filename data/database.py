@@ -215,6 +215,10 @@ class DatabaseManager:
                 for r in rows
             ]
 
+    def get_all_locations(self) -> List[Location]:
+        """Alias for list_all_locations."""
+        return self.list_all_locations()
+
     # -------------------------------------------------------------------------
     # Transport Service Operations
     # -------------------------------------------------------------------------
@@ -299,7 +303,8 @@ class DatabaseManager:
 
         if mode:
             query += " AND mode = ?"
-            params.append(mode.value)
+            mode_val = mode.value if hasattr(mode, "value") else str(mode)
+            params.append(mode_val)
 
         if earliest_departure:
             query += " AND departure_time >= ?"
@@ -321,6 +326,10 @@ class DatabaseManager:
         with self.get_connection() as conn:
             rows = conn.execute(query, params).fetchall()
             return [self._row_to_service(r) for r in rows if r]
+
+    def get_all_services(self) -> List[TransportService]:
+        """Returns all transport services in the database."""
+        return self.query_services()
 
     def _row_to_service(self, row: sqlite3.Row) -> TransportService:
         """Converts an SQLite row to a typed TransportService."""
@@ -396,7 +405,8 @@ class DatabaseManager:
 
         if mode:
             query += " AND mode = ?"
-            params.append(mode.value)
+            mode_val = mode.value if hasattr(mode, "value") else str(mode)
+            params.append(mode_val)
 
         with self.get_connection() as conn:
             rows = conn.execute(query, params).fetchall()

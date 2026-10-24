@@ -4,7 +4,48 @@
 
 RouteRescue AI is an autonomous multimodal travel recovery platform designed to monitor travel disruptions across train, bus, and road networks, evaluate alternative routes, and synthesize optimal alternative journeys based on passenger constraints.
 
-This repository implements **Phase 1: Project Foundation**, **Phase 2: Independent Transport Agents**, **Phase 3: Recovery Planner Agent**, and **Phase 4: Autonomous Disruption Monitoring**.
+This repository implements **Phase 1: Project Foundation**, **Phase 2: Independent Transport Agents**, **Phase 3: Recovery Planner Agent**, **Phase 4: Autonomous Disruption Monitoring**, and **Phase 5: Intelligent Route Optimization**.
+
+---
+
+## 🔀 Phase 5: Intelligent Multimodal Route Optimization
+
+RouteRescue AI incorporates a schedule-aware multimodal routing engine using **NetworkX (`MultiDiGraph`)** that evaluates direct services and time-dependent multi-leg connections while enforcing realistic transfer constraints:
+
+1. **Multimodal Router Engine** (`services/multimodal_router.py`):
+   - **Time-Dependent Transit Graph:** Models transit hubs as nodes (15 transit hubs across Delhi, Gurugram, Noida, Jaipur, Chandigarh, Ambala, Mathura, Agra) and scheduled rail, bus, and road services as directed edges with exact timestamps, fares, and seat status.
+   - **Supported Journey Patterns:**
+     - Direct routes (0 transfers): `DIRECT_TRAIN`, `DIRECT_BUS`, `DIRECT_CAB`.
+     - Multimodal routes (1+ transfers): `CAB + TRAIN`, `CAB + BUS`, `TRAIN + BUS`, `TRAIN + CAB`.
+   - **Realistic Transfer Buffer Enforcement:**
+     - **Same-Hub Transfers (e.g. at NDLS, JP, UMB, AGC):** Requires a minimum of **20 minutes** buffer.
+     - **Inter-Terminal Transfers in Same City (e.g. NDLS to DEL_ISBT in Delhi, JP to JAI_BUS in Jaipur):** Requires a minimum of **40 minutes** buffer.
+     - **Impossible Transfers:** Transfers with layover < required buffer or exceeding maximum layover cap (360 minutes / 6 hours) are strictly rejected.
+   - **Overnight & Midnight Journey Accounting:** Accurate elapsed transit duration calculation for sleeper trains and night buses that cross midnight.
+   - **Accurate Cost & Estimation Distinction:** Clearly identifies verified scheduled ticket fares vs estimated on-demand road fares (`has_estimated_costs=True`).
+
+2. **Multimodal Coordination & Explainable Recommendations:**
+   - Evaluates direct modal search results from Rail, Bus, and Cab agents alongside dynamically discovered multimodal transit paths.
+   - Computes deterministic multi-criteria utility ranking based on configurable weights (duration, cost economy, reliability, transfer penalty).
+   - Generates natural-language rationale with leg-by-leg breakdowns, transfer hub identification, layover durations, and cost breakdowns.
+
+```
++----------------------------------------------------------------------------------------------------------------+
+|                                    Time-Dependent Multimodal Routing Graph                                     |
+|                                                                                                                |
+|    Gurugram (GGN)                                                                                              |
+|          |                                                                                                     |
+|     (Cab | 40m, Rs. 350)                                                                                       |
+|          v                                                                                                     |
+|    New Delhi (NDLS) ------------ (Shatabdi Express | 140m, Rs. 480) -----------> Ambala Cantt (UMB)            |
+|          |                                                                               |                     |
+|    (Same-City Transfer:                                                             (Same-Hub Transfer:        |
+|     NDLS -> DEL_ISBT >= 40m)                                                         >= 20m buffer)            |
+|          v                                                                               v                     |
+|    Delhi ISBT (DEL_ISBT) ------- (Zingbus Volvo | 310m, Rs. 550) ------> Jaipur     Chandigarh ISBT (CDG_BUS)  |
+|                                                                          (JP)                                  |
++----------------------------------------------------------------------------------------------------------------+
+```
 
 ---
 
@@ -218,9 +259,9 @@ The demonstration network is centered around the Northern India Golden Transit T
 - **Agra**: Agra Cantt (`AGC`), Idgah Bus Terminal (`AGR_BUS`), Mathura Junction (`MTJ`).
 
 ### Synthetic Dataset Guarantees:
-- **32 Train Services**: Shatabdi, Vande Bharat, Rajdhani, Jan Shatabdi, Intercity, and overnight sleepers.
-- **32 Intercity Bus Services**: Zingbus, IntrCity SmartBus, NueGo Electric AC, RSRTC Gold Line, Haryana Roadways Volvo, UPSRTC Janrath.
-- **21 Cab and Road Connections**: Uber Intercity, BluSmart Electric, Savaari Car Rentals, and intra-city terminal transfers.
+- **34 Train Services**: Shatabdi, Vande Bharat, Rajdhani, Jan Shatabdi, Intercity, intermediate connectors (NDLS->UMB, NDLS->MTJ), and overnight sleepers.
+- **34 Intercity Bus Services**: Zingbus, IntrCity SmartBus, NueGo Electric AC, RSRTC Gold Line, Haryana Roadways Volvo, UPSRTC Janrath, intermediate shuttles (UMB->CDG, MTJ->AGR).
+- **23 Cab and Road Connections**: Uber Intercity, BluSmart Electric, Savaari Car Rentals, and intra-city terminal transfers (GGN->NDLS, GGN->DEL_ISBT).
 - **10 Simulated Disruption Scenarios**: Winter fog delays, track maintenance cancellations, overhead equipment failure, Yamuna Expressway gridlock, and airport ATC delay programs.
 - **Data Integrity**: Every record includes exact departure/arrival times (with timezone awareness in `Asia/Kolkata` IST), distance, fare in INR, seat availability, provider name, direct booking URL, overnight flags, and explicit demonstration labels.
 
@@ -283,7 +324,7 @@ python -c "from agents.disruption_monitor_agent import create_disruption_monitor
 ```bash
 pytest -v
 ```
-All 39 automated tests across unit, integration, and multi-agent suites will execute and verify schema compliance, dataset integrity, search functionality, constraint validation, scoring algorithms, periodic monitoring, and autonomous recovery triggering.
+All 46 automated tests across unit, integration, route optimization, and multi-agent suites will execute and verify schema compliance, dataset integrity, search functionality, constraint validation, scoring algorithms, periodic monitoring, multimodal time-dependent routing, and autonomous recovery triggering.
 
 ### 6. Launch the FastAPI Backend
 ```bash

@@ -224,6 +224,10 @@ def get_synthetic_train_services(base_date: Optional[datetime] = None) -> List[T
         ("TRN-12987", "12987", "Sealdah-Ajmer Express", "AGC", "JP", 8, 15, 275, 241.0, 380.0, 50, SeatAvailabilityStatus.AVAILABLE, False),
         ("TRN-14660", "14660", "Chandigarh-Barmer Express (Overnight)", "CDG", "JP", 21, 45, 545, 520.0, 620.0, 30, SeatAvailabilityStatus.AVAILABLE, True),
         ("TRN-14659", "14659", "Barmer-Chandigarh Express (Overnight)", "JP", "CDG", 23, 10, 540, 520.0, 620.0, 28, SeatAvailabilityStatus.AVAILABLE, True),
+
+        # Intermediate Multimodal Rail Connectors (Delhi -> Ambala, Delhi -> Mathura)
+        ("TRN-12005", "12005", "Kalka Shatabdi Express", "NDLS", "UMB", 6, 40, 140, 198.0, 480.0, 45, SeatAvailabilityStatus.AVAILABLE, False),
+        ("TRN-14041", "14041", "Mussoorie Taj Link", "NDLS", "MTJ", 7, 15, 95, 140.0, 240.0, 60, SeatAvailabilityStatus.AVAILABLE, False),
     ]
 
     services: List[TransportService] = []
@@ -324,6 +328,10 @@ def get_synthetic_bus_services(base_date: Optional[datetime] = None) -> List[Tra
         ("BUS-UP-604", "UPSRTC Express", "Agra-Jaipur Connector", "AGR_BUS", "JAI_BUS", 14, 0, 330, 240.0, 460.0, 28, SeatAvailabilityStatus.AVAILABLE, False),
         ("BUS-ZB-113", "Zingbus Overnight", "Chandigarh-Jaipur Sleeper", "CDG_BUS", "JAI_BUS", 21, 30, 570, 510.0, 1150.0, 14, SeatAvailabilityStatus.AVAILABLE, True),
         ("BUS-ZB-114", "Zingbus Overnight", "Jaipur-Chandigarh Sleeper", "JAI_BUS", "CDG_BUS", 21, 45, 570, 510.0, 1150.0, 12, SeatAvailabilityStatus.AVAILABLE, True),
+
+        # Intermediate Multimodal Bus Connectors
+        ("BUS-HR-305", "Haryana Roadways", "Ambala-Chandigarh Non-Stop", "UMB", "CDG_BUS", 9, 35, 50, 45.0, 110.0, 35, SeatAvailabilityStatus.AVAILABLE, False),
+        ("BUS-UPS-505", "UPSRTC Express", "Mathura-Agra ISBT Shuttle", "MTJ", "AGR_BUS", 9, 30, 45, 52.0, 95.0, 40, SeatAvailabilityStatus.AVAILABLE, False),
     ]
 
     services: List[TransportService] = []
@@ -411,6 +419,10 @@ def get_synthetic_cab_services(base_date: Optional[datetime] = None) -> List[Tra
         ("CAB-INT-19", "Savaari Car Rentals", "Jaipur to Agra Direct Highway Cab", "JP", "AGC", 8, 0, 260, 240.0, 3400.0, 4, SeatAvailabilityStatus.AVAILABLE),
         ("CAB-INT-20", "Uber Intercity", "Agra to Jaipur Highway Sedan", "AGC", "JP", 14, 30, 260, 240.0, 3400.0, 4, SeatAvailabilityStatus.ON_DEMAND),
         ("CAB-INT-21", "Savaari Car Rentals", "Ambala Cantt to Chandigarh Fast Cab", "UMB", "CDG", 9, 15, 50, 48.0, 850.0, 4, SeatAvailabilityStatus.AVAILABLE),
+
+        # Intermediate Multimodal Highway Cabs
+        ("CAB-BLU-22", "BluSmart City", "Gurugram Cyber City to New Delhi Station", "GGN", "NDLS", 6, 30, 40, 28.0, 350.0, 4, SeatAvailabilityStatus.ON_DEMAND),
+        ("CAB-HUB-23", "BluSmart City", "Gurugram to Kashmere Gate ISBT", "GGN", "DEL_ISBT", 7, 0, 55, 36.0, 420.0, 4, SeatAvailabilityStatus.ON_DEMAND),
     ]
 
     services: List[TransportService] = []
