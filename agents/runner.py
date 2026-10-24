@@ -14,7 +14,7 @@ from data.database import DatabaseManager
 def create_transport_bureau(
     db: Optional[DatabaseManager] = None,
     agents: Optional[List[Agent]] = None,
-    port: int = 8000,
+    port: int = 8010,
     endpoint: Optional[str] = None,
     include_planner: bool = True,
     include_monitor: bool = True,
