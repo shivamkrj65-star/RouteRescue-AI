@@ -1,142 +1,134 @@
 # RouteRescue AI 🚆🚌🚗✈️
 
-**Autonomous Multimodal Travel Recovery System for Fetch-A-Thon 3.0**
+**Autonomous Multimodal Travel Disruption Recovery System for Fetch-A-Thon 3.0**
 
-RouteRescue AI is an autonomous, decentralized multi-agent system built on the **Fetch.ai uAgents Framework**, **Agentverse**, and **ASI:One**. When travel disruptions strike—such as cancelled trains, grounded flights, or blocked highways—RouteRescue AI detects the incidents in real-time, coordinates modal search agents across rail, bus/coach, and road/cab providers, and synthesizes optimal alternative multimodal journeys tailored to user budget, deadlines, and transfer limits.
+RouteRescue AI is an autonomous multimodal travel recovery platform designed to monitor travel disruptions across train, bus, and road networks, evaluate alternative routes, and synthesize optimal alternative journeys based on passenger constraints.
 
----
-
-## 🏛️ System Architecture
-
-```
-                        +----------------------------+
-                        |          User UI           |
-                        |   (Streamlit Console)      |
-                        +--------------+-------------+
-                                       |
-                                       v
-                        +----------------------------+
-                        |      FastAPI Backend       |
-                        |  (REST API & Webhooks)     |
-                        +--------------+-------------+
-                                       |
-        ===============================+================================
-        Fetch.ai uAgents Multi-Agent Bureau / Decentralized Mesh Network
-        ===============================+================================
-                                       |
-                   +-------------------+-------------------+
-                   |                                       |
-                   v                                       v
-       +-----------------------+              +-------------------------+
-       |  Disruption Monitor   |              |    Recovery Planner     |
-       |         Agent         |              |          Agent          |
-       +-----------+-----------+              +------------+------------+
-                   |                                       |
-                   | (DisruptionAlertMessage)              | (ModalSearchRequest)
-                   +-------------------------------------->|
-                                                           |
-                      +-------------------+----------------+-------------------+
-                      |                   |                                    |
-                      v                   v                                    v
-           +--------------------+ +--------------------+             +--------------------+
-           |  Rail Search Agent | |  Bus Search Agent  |             |  Cab & Road Agent  |
-           |  (Avanti, LNER,    | | (National Express, |             | (Uber, Cabs, Road  |
-           |   TransPennine)    | |  Megabus, FlixBus) |             |  Highway Transfer) |
-           +--------------------+ +--------------------+             +--------------------+
-                      |                   |                                    |
-                      +-------------------+------------------------------------+
-                                          | (ModalSearchResponse)
-                                          v
-                              +------------------------+
-                              | Multimodal Optimizer   |
-                              | (NetworkX Graph Engine)|
-                              +------------------------+
-                                          |
-                                          v
-                              +------------------------+
-                              | Human-in-the-Loop Gate |
-                              | (User Approval Engine) |
-                              +------------------------+
-```
+This repository implements **Phase 1: Project Foundation**.
 
 ---
 
-## 🤖 Required Agents
+## 🏛️ Project Architecture & Directory Layout
 
-1. **Disruption Monitor Agent**: Continuously polls and streams train, flight, and road incidents, broadcasting alerts to the Recovery Planner.
-2. **Rail Search Agent**: Discovers available alternative train departures and interconnecting railway corridors.
-3. **Bus Search Agent**: Identifies intercity coach and regional bus alternatives.
-4. **Cab & Road Agent**: Computes dynamic road alternatives, intra-city transit transfers (e.g., station-to-coach station), and emergency highway connections.
-5. **Recovery Planner Agent**: Orchestrates the multi-agent consensus, queries the NetworkX Multimodal Optimizer, and generates ranked recovery plans.
-
----
-
-## 🔒 Key Design Guarantees
-
-1. **Authenticity Tagging (`DataVerificationStatus`)**:
-   - `VERIFIED_LIVE`: Authenticated live partner data.
-   - `SIMULATED_ESTIMATE`: Synthetic travel data and estimated rates clearly labeled.
-   - Live availability and prices are **never fabricated**.
-2. **Human-In-The-Loop Approval (`BookingApprovalStatus`)**:
-   - All recovery itineraries require explicit user approval (`APPROVED_BY_USER`) before any booking instructions or reservation executions can proceed.
-3. **Strict Typed Message Protocols**:
-   - Every message derives directly from `uagents.Model` for Fetch.ai compatibility.
-
----
-
-## 📁 Repository Structure
+The project follows a clean, modular structure:
 
 ```
 Route Rescue AI/
-├── pyproject.toml              # Project metadata and dependencies
-├── requirements.txt            # Pinned requirements
-├── README.md                   # System documentation
-├── data/
-│   └── routerescue.db          # SQLite database (schedules, disruptions, audit logs)
-├── src/
-│   └── routerescue/
-│       ├── __init__.py
-│       ├── config.py           # System settings, agent ports & seed phrases
-│       ├── schemas/            # Fetch.ai uAgents Pydantic-compatible schemas
-│       │   ├── __init__.py
-│       │   ├── common.py       # Enums (modes, severities, verification, approval)
-│       │   ├── disruption.py   # DisruptionEvent schema
-│       │   ├── travel.py       # Location, TravelSegment, Journey, PassengerProfile
-│       │   └── messages.py     # Agent-to-agent message payloads
-│       ├── data/               # Realistic synthetic datasets & persistence
-│       │   ├── __init__.py
-│       │   ├── database.py     # SQLite DatabaseManager with audit logging
-│       │   ├── synthetic_corridors.py # Core UK hubs & disruption scenarios
-│       │   └── seed_data.py    # Timetable generator & database seeder
-│       ├── optimizer/          # [Phase 2] Multimodal NetworkX route solver
-│       ├── agents/             # [Phase 3] Fetch.ai uAgents implementation
-│       ├── api/                # [Phase 4] FastAPI REST endpoints
-│       └── ui/                 # [Phase 4] Streamlit interactive operations console
-└── tests/
-    ├── conftest.py             # Test fixtures and isolated temp DBs
-    ├── test_schemas.py         # Schema compliance & verification tests
-    ├── test_database.py        # SQLite queries, constraints, and audit tests
-    └── test_synthetic_data.py  # Corridor integrity & timetable generation tests
+├── config/                     # Configuration and environment settings
+│   ├── __init__.py
+│   └── settings.py             # Settings (IST timezone, SQLite path, API ports)
+├── schemas/                    # Shared Pydantic data models
+│   ├── __init__.py
+│   ├── common.py               # Enums (TransportMode, BookingStatus, SeatAvailability)
+│   ├── travel.py               # Location, TransportService, UserJourney
+│   ├── disruption.py           # DisruptionEvent schema
+│   └── search.py               # Search requests, alternatives, recovery recommendations
+├── data/                       # Synthetic datasets & SQLite persistence
+│   ├── __init__.py
+│   ├── synthetic_network.py    # Delhi, Jaipur, Chandigarh, Agra corridor network
+│   ├── database.py             # Thread-safe SQLite DatabaseManager
+│   └── seed_data.py            # Dataset seeder
+│   └── routerescue.db          # SQLite database
+├── services/                   # Business logic and transport search engine
+│   ├── __init__.py
+│   └── transport_service.py    # TransportDataService (multimodal filtering & tradeoffs)
+├── backend/                    # FastAPI REST API
+│   ├── __init__.py
+│   └── main.py                 # Endpoints (/health, /search, /disruptions, /journeys)
+├── frontend/                   # Streamlit Interactive Console
+│   ├── __init__.py
+│   └── app.py                  # Live dashboard & recovery view
+├── agents/                     # [Phase 3] Fetch.ai uAgents multi-agent system
+│   ├── __init__.py
+│   └── README.md               # Agent specifications and uAgents protocol plan
+├── tests/                      # Automated test suite
+│   ├── conftest.py             # Pytest fixtures and isolated temporary databases
+│   ├── test_schemas.py         # Schema validation & serialization tests
+│   ├── test_synthetic_datasets.py # Dataset integrity, counts & overnight checks
+│   └── test_transport_service.py  # Transport search & filtering tests
+├── .env.example                # Example environment variables
+├── requirements.txt            # Dependency specification
+├── pyproject.toml              # Build & test configuration
+└── README.md                   # Documentation
 ```
 
 ---
 
-## 🚀 Development Phases
+## 🗺️ Demonstration Transport Network
 
-- **Phase 1 (Completed ✅)**: Project foundation, shared schemas (`uagents.Model`), realistic synthetic datasets across UK corridors (3,300+ segments, 13 hubs, 3 benchmark disruptions), SQLite audit layer, and test suite (15/15 passing).
-- **Phase 2 (Next)**: NetworkX Multimodal Route Recovery Optimizer considering budget limits, arrival deadlines, transfer penalties, and layover buffers.
-- **Phase 3**: Five autonomous Fetch.ai uAgents with agent-to-agent messaging protocol and local `Bureau` execution.
-- **Phase 4**: FastAPI backend and Streamlit interactive travel recovery dashboard.
-- **Phase 5**: Agentverse & ASI:One integration with full end-to-end integration tests.
+The demonstration network is centered around the Northern India Golden Transit Triangle:
+- **Delhi & NCR**: New Delhi Railway Station (`NDLS`), Hazrat Nizamuddin (`NZM`), Kashmere Gate ISBT (`DEL_ISBT`), Indira Gandhi International Airport (`DEL_AIR`), Gurugram (`GGN`), Noida (`NOI`).
+- **Jaipur**: Jaipur Junction (`JP`), Sindhi Camp Bus Stand (`JAI_BUS`), Jaipur Airport (`JAI_AIR`).
+- **Chandigarh**: Chandigarh Junction (`CDG`), ISBT Sector 43 (`CDG_BUS`), Ambala Cantt (`UMB`).
+- **Agra**: Agra Cantt (`AGC`), Idgah Bus Terminal (`AGR_BUS`), Mathura Junction (`MTJ`).
+
+### Synthetic Dataset Guarantees:
+- **32 Train Services**: Shatabdi, Vande Bharat, Rajdhani, Jan Shatabdi, Intercity, and overnight sleepers.
+- **32 Intercity Bus Services**: Zingbus, IntrCity SmartBus, NueGo Electric AC, RSRTC Gold Line, Haryana Roadways Volvo, UPSRTC Janrath.
+- **21 Cab and Road Connections**: Uber Intercity, BluSmart Electric, Savaari Car Rentals, and intra-city terminal transfers.
+- **10 Simulated Disruption Scenarios**: Winter fog delays, track maintenance cancellations, overhead equipment failure, Yamuna Expressway gridlock, and airport ATC delay programs.
+- **Data Integrity**: Every record includes exact departure/arrival times (with timezone awareness in `Asia/Kolkata` IST), distance, fare in INR, seat availability, provider name, direct booking URL, overnight flags, and explicit demonstration labels.
 
 ---
 
-## 🧪 Running Tests
+## 🚀 Getting Started
 
+### 1. Prerequisites
+- Python 3.11, 3.12, or 3.13
+- Git
+
+### 2. Setup Virtual Environment
 ```bash
-# Activate virtual environment
-.\.venv\Scripts\activate
+# Clone or navigate to the repository
+cd "Route Rescue AI"
 
-# Run test suite
-pytest
+# Create virtual environment
+python -m venv .venv
+
+# Activate virtual environment
+# Windows PowerShell:
+.\.venv\Scripts\Activate.ps1
+# Linux / macOS:
+# source .venv/bin/activate
+
+# Install dependencies
+pip install -r requirements.txt
 ```
+
+### 3. Seed Synthetic Database
+Populates the SQLite database (`data/routerescue.db`) with the demonstration transport network:
+```bash
+python -m data.seed_data
+```
+
+### 4. Run Automated Test Suite
+```bash
+pytest -v
+```
+All 22 unit tests will execute and verify schema compliance, dataset integrity, and search functionality.
+
+### 5. Launch the FastAPI Backend
+```bash
+uvicorn backend.main:app --host 127.0.0.1 --port 8000 --reload
+```
+Interactive API documentation will be available at:
+- Swagger UI: `http://127.0.0.1:8000/docs`
+- Redoc: `http://127.0.0.1:8000/redoc`
+
+### 6. Launch the Streamlit Frontend Console
+In a separate terminal (with the virtual environment activated):
+```bash
+streamlit run frontend/app.py --server.port 8501
+```
+Open your browser at `http://localhost:8501` to explore available journeys, view active disruption alerts, and inspect passenger recovery profiles.
+
+---
+
+## 🧪 Testing Results
+
+Executed with `pytest -v`:
+- `tests/test_schemas.py`: 6 tests passing (User journeys, booking status, disruptions, search models, recovery recommendations)
+- `tests/test_synthetic_datasets.py`: 6 tests passing (>= 30 trains, >= 30 buses, >= 20 cabs, >= 10 disruptions, timezone & overnight accounting, demo labeling)
+- `tests/test_transport_service.py`: 10 tests passing (origin/destination search, budget filtering, mode filtering, earliest departure, seat availability, overnight journeys, disruption checks, tradeoff summaries)
+
+**Result: 22 passed in 2.41s (100% pass rate).**
