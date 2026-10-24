@@ -12,6 +12,14 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 IST = timezone(timedelta(hours=5, minutes=30), name="IST")
 
 
+class AgentEndpointConfig(BaseModel):
+    """Configuration for an individual Fetch.ai uAgent."""
+    name: str
+    seed: str
+    port: int
+    endpoint: str = "http://127.0.0.1"
+
+
 class Settings(BaseModel):
     """Configuration settings for RouteRescue AI."""
     app_name: str = "RouteRescue AI"
@@ -32,6 +40,35 @@ class Settings(BaseModel):
 
     # Streamlit Frontend
     streamlit_port: int = Field(default_factory=lambda: int(os.getenv("STREAMLIT_PORT", "8501")))
+
+    # Agent Configurations
+    rail_agent: AgentEndpointConfig = Field(
+        default_factory=lambda: AgentEndpointConfig(
+            name="rail_search_agent",
+            seed="routerescue_rail_search_seed_v1",
+            port=8001,
+            endpoint="http://127.0.0.1:8001/submit",
+        )
+    )
+    bus_agent: AgentEndpointConfig = Field(
+        default_factory=lambda: AgentEndpointConfig(
+            name="bus_search_agent",
+            seed="routerescue_bus_search_seed_v1",
+            port=8002,
+            endpoint="http://127.0.0.1:8002/submit",
+        )
+    )
+    cab_agent: AgentEndpointConfig = Field(
+        default_factory=lambda: AgentEndpointConfig(
+            name="cab_road_search_agent",
+            seed="routerescue_cab_road_search_seed_v1",
+            port=8003,
+            endpoint="http://127.0.0.1:8003/submit",
+        )
+    )
+
+    # Default timeout for agent messaging in seconds
+    agent_message_timeout_seconds: float = 10.0
 
     # Demonstration network metadata
     corridor_region: str = "Northern India (Delhi, Jaipur, Chandigarh, Agra)"

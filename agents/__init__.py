@@ -1,1 +1,13 @@
-"""Agents package for RouteRescue AI (Implementation targeted for Phase 3)."""
+"""Fetch.ai uAgents multi-agent transport search system."""
+
+from agents.bus_agent import create_bus_agent
+from agents.cab_agent import create_cab_agent
+from agents.rail_agent import create_rail_agent
+from agents.runner import create_transport_bureau
+
+__all__ = [
+    "create_rail_agent",
+    "create_bus_agent",
+    "create_cab_agent",
+    "create_transport_bureau",
+]

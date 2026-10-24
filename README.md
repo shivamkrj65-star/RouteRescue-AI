@@ -4,7 +4,54 @@
 
 RouteRescue AI is an autonomous multimodal travel recovery platform designed to monitor travel disruptions across train, bus, and road networks, evaluate alternative routes, and synthesize optimal alternative journeys based on passenger constraints.
 
-This repository implements **Phase 1: Project Foundation**.
+This repository implements **Phase 1: Project Foundation** and **Phase 2: Independent Transport Agents**.
+
+---
+
+## 🤖 Phase 2: Autonomous Transport Agents Architecture
+
+RouteRescue AI deploys three autonomous search agents built with the **Fetch.ai uAgents** framework:
+
+1. **Rail Search Agent** (`rail_search_agent`):
+   - Cryptographic Address: `agent1q2r3529s3309a9w0cwhd8zfqv5952l4g2u8j6t6075908d0yq8c9x5p6v69`
+   - Protocol: `RailSearchProtocol` (v1.0.0)
+   - Function: Autonomously receives `TransportSearchQuery` messages, executes train searches against synthetic datasets, and replies with structured `TransportSearchResult` messages containing ranked train alternatives.
+2. **Bus Search Agent** (`bus_search_agent`):
+   - Cryptographic Address: `agent1qv3l4q397s4e48k29p6qg9y867zfcgpx8z2d2df26c5j6vd2whn9xwq5mcu`
+   - Protocol: `BusSearchProtocol` (v1.0.0)
+   - Function: Evaluates intercity bus routes across operators (electric AC, sleeper, Volvo, state roadways), evaluating availability and luggage allowances.
+3. **Cab & Road Search Agent** (`cab_road_search_agent`):
+   - Cryptographic Address: `agent1qw82a2cfhsk88339p857gsw4h65z2cr2f6f58p83g6dqwqj3whu5xej5msr`
+   - Protocol: `CabRoadSearchProtocol` (v1.0.0)
+   - Function: Evaluates point-to-point road travel, expressway transfers, and on-demand cab connections.
+
+```
++-----------------------------------------------------------------------------------------+
+|                                    Fetch.ai Bureau                                      |
+|                                                                                         |
+|   +-----------------------+   TransportSearchQuery    +-----------------------------+   |
+|   |                       | ------------------------> |      Rail Search Agent      |   |
+|   |                       | <------------------------ |     (RailSearchProtocol)    |   |
+|   |                       |   TransportSearchResult   +-----------------------------+   |
+|   |                       |                                                             |
+|   |  Coordinator / Client |   TransportSearchQuery    +-----------------------------+   |
+|   |         Agent         | ------------------------> |       Bus Search Agent      |   |
+|   |                       | <------------------------ |     (BusSearchProtocol)     |   |
+|   |                       |   TransportSearchResult   +-----------------------------+   |
+|   |                       |                                                             |
+|   |                       |   TransportSearchQuery    +-----------------------------+   |
+|   |                       | ------------------------> |   Cab & Road Search Agent   |   |
+|   |                       | <------------------------ |   (CabRoadSearchProtocol)   |   |
+|   +-----------------------+   TransportSearchResult   +-----------------------------+   |
++-----------------------------------------------------------------------------------------+
+```
+
+### Key Agent Engineering Highlights:
+- **Clean Decoupling:** Modal search logic (`services/modal_search.py`) is completely separated from communication protocol code (`agents/*.py`).
+- **Cryptographic Identities & Addresses:** Each agent has deterministic Ed25519 cryptographic keypairs generated from seeds.
+- **Asynchronous uAgents Messaging:** True agent-to-agent message passing using `ctx.send(...)` and typed Pydantic models.
+- **Request ID Correlation:** All message schemas include `request_id` to correlate asynchronous queries across distributed agents.
+- **Resilience & Timeouts:** Handles empty results, impossible budget caps, and network timeouts cleanly.
 
 ---
 
@@ -101,13 +148,30 @@ Populates the SQLite database (`data/routerescue.db`) with the demonstration tra
 python -m data.seed_data
 ```
 
-### 4. Run Automated Test Suite
+### 4. Run the Autonomous Transport Agents
+Start all three transport agents (Rail, Bus, and Cab) concurrently under the Fetch.ai Bureau:
+```bash
+python -m agents.runner
+```
+Or run each agent independently in its own process:
+```bash
+# Terminal 1 - Rail Agent (port 8001)
+python -c "from agents.rail_agent import create_rail_agent; a = create_rail_agent(); a.run()"
+
+# Terminal 2 - Bus Agent (port 8002)
+python -c "from agents.bus_agent import create_bus_agent; a = create_bus_agent(); a.run()"
+
+# Terminal 3 - Cab & Road Agent (port 8003)
+python -c "from agents.cab_agent import create_cab_agent; a = create_cab_agent(); a.run()"
+```
+
+### 5. Run Automated Multi-Agent & Integration Test Suite
 ```bash
 pytest -v
 ```
-All 22 unit tests will execute and verify schema compliance, dataset integrity, and search functionality.
+All 27 automated tests across unit and multi-agent integration suites will execute and verify schema compliance, dataset integrity, search functionality, and asynchronous agent-to-agent messaging.
 
-### 5. Launch the FastAPI Backend
+### 6. Launch the FastAPI Backend
 ```bash
 uvicorn backend.main:app --host 127.0.0.1 --port 8000 --reload
 ```
@@ -115,7 +179,7 @@ Interactive API documentation will be available at:
 - Swagger UI: `http://127.0.0.1:8000/docs`
 - Redoc: `http://127.0.0.1:8000/redoc`
 
-### 6. Launch the Streamlit Frontend Console
+### 7. Launch the Streamlit Frontend Console
 In a separate terminal (with the virtual environment activated):
 ```bash
 streamlit run frontend/app.py --server.port 8501
@@ -127,8 +191,9 @@ Open your browser at `http://localhost:8501` to explore available journeys, view
 ## 🧪 Testing Results
 
 Executed with `pytest -v`:
+- `tests/test_agents_integration.py`: 5 tests passing (Agent identities & cryptographic addresses, separated modal search services, asynchronous uAgents message passing across 3 agents, departure time & budget filtering, and empty results resilience)
 - `tests/test_schemas.py`: 6 tests passing (User journeys, booking status, disruptions, search models, recovery recommendations)
 - `tests/test_synthetic_datasets.py`: 6 tests passing (>= 30 trains, >= 30 buses, >= 20 cabs, >= 10 disruptions, timezone & overnight accounting, demo labeling)
 - `tests/test_transport_service.py`: 10 tests passing (origin/destination search, budget filtering, mode filtering, earliest departure, seat availability, overnight journeys, disruption checks, tradeoff summaries)
 
-**Result: 22 passed in 2.41s (100% pass rate).**
+**Result: 27 passed, 0 failed in 40.34s (100% pass rate).**

@@ -11,3 +11,4 @@ pandas>=2.2.0
 python-dateutil>=2.9.0
 python-multipart>=0.0.18
 pytest>=8.0.0
+pytest-asyncio>=1.4.0

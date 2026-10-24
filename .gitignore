@@ -46,3 +46,7 @@ routerescue.db
 # Environment variables
 .env
 .env.local
+
+# uAgents keys and storage
+private_keys.json
+*.key
