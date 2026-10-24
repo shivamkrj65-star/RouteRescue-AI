@@ -1,0 +1,12 @@
+uagents>=0.26.0
+uagents-core>=0.4.11
+pydantic>=2.10.0
+fastapi>=0.115.0
+uvicorn>=0.34.0
+streamlit>=1.40.0
+networkx>=3.4
+apscheduler>=3.10.4
+pandas>=2.2.0
+pytest>=8.0.0
+python-dateutil>=2.9.0
+python-multipart>=0.0.18

@@ -1,0 +1,40 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "routerescue-ai"
+version = "0.1.0"
+description = "Autonomous Multimodal Travel Recovery System powered by Fetch.ai uAgents"
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [
+    { name = "RouteRescue AI Team" }
+]
+dependencies = [
+    "uagents>=0.26.0",
+    "uagents-core>=0.4.11",
+    "pydantic>=2.10.0",
+    "fastapi>=0.115.0",
+    "uvicorn>=0.34.0",
+    "streamlit>=1.40.0",
+    "networkx>=3.4",
+    "apscheduler>=3.10.4",
+    "pandas>=2.2.0",
+    "python-dateutil>=2.9.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --import-mode=importlib"
