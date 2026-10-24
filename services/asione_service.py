@@ -216,9 +216,10 @@ class AsiOneService:
 
         # 2. Extract Budget
         max_budget = None
+        text_clean = text.replace(",", "")
         budget_match = re.search(
-            r"(?:under|budget|max|below|less than|within|rs\.?|inr)\s*(?:of\s*)?(\d{2,5})|(\d{2,5})\s*(?:inr|rs|rupees|budget)",
-            text,
+            r"(?:under|budget|max|below|less than|within|rs\.?|inr|₹|reduce.*to)\s*(?:of\s*|to\s*)?(\d{2,5})|(\d{2,5})\s*(?:inr|rs|rupees|budget)",
+            text_clean,
             re.IGNORECASE,
         )
         if budget_match:
@@ -262,8 +263,19 @@ class AsiOneService:
 
         # 5. Extract Transfers Preference
         max_transfers = 1
-        if "direct only" in text_lower or "no transfer" in text_lower or "non-stop" in text_lower or "non stop" in text_lower:
+        if re.search(r"\b(?:direct only|no transfers?|non[- ]?stop|zero transfers?)\b", text_lower):
             max_transfers = 0
+        elif re.search(r"\b(?:one transfer|1 transfer|single transfer|at most 1 transfer|no more than (?:one|1) transfer|don'?t want more than (?:one|1) transfer)\b", text_lower):
+            max_transfers = 1
+        elif re.search(r"\b(?:two transfers?|2 transfers?|max 2 transfers?)\b", text_lower):
+            max_transfers = 2
+
+        # 6. Extract Optimization Preference / Weights
+        weights = None
+        if re.search(r"\b(?:fastest|quickest|shortest time|most rapid|fast transit)\b", text_lower):
+            weights = ScoringWeights(duration_weight=0.70, cost_weight=0.15, reliability_weight=0.10, transfer_weight=0.05)
+        elif re.search(r"\b(?:cheapest|lowest fare|most economical|budget friendly)\b", text_lower):
+            weights = ScoringWeights(cost_weight=0.70, duration_weight=0.15, reliability_weight=0.10, transfer_weight=0.05)
 
         req_id = f"REQ-NLP-{int(datetime.now(IST).timestamp() * 1000)}"
         return RecoveryRequest(
@@ -274,6 +286,7 @@ class AsiOneService:
             latest_acceptable_arrival=latest_arrival,
             max_budget=max_budget,
             max_transfers=max_transfers,
+            weights=weights,
         )
 
     # -------------------------------------------------------------------------
