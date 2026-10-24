@@ -131,6 +131,20 @@ async def recovery_chat(payload: RecoveryChatPayload):
     }
 
 
+@app.get("/", tags=["System"])
+def root():
+    """Root endpoint welcoming users and directing to interactive documentation."""
+    return {
+        "app_name": settings.app_name,
+        "version": settings.version,
+        "status": "online",
+        "docs_url": "http://127.0.0.1:8000/docs",
+        "health_check": "http://127.0.0.1:8000/health",
+        "streamlit_dashboard": "http://localhost:8501",
+        "message": "RouteRescue AI Backend is running. Visit /docs for interactive Swagger API UI.",
+    }
+
+
 @app.get("/health", tags=["System"])
 def health_check():
     """Health check endpoint confirming system status and synthetic demonstration mode."""
