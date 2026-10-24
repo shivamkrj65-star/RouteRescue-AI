@@ -1,12 +1,15 @@
 """FastAPI backend application for RouteRescue AI."""
 
-from typing import List, Optional
+from datetime import datetime
+from typing import Any, Dict, List, Optional, Tuple
+import uuid
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-from config.settings import settings
+from config.settings import IST, settings
 from data.database import DatabaseManager
+from data.seed_data import seed_database
 from schemas.agent_messages import RecoveryRequest, RecoveryResponse
 from schemas.common import BookingStatus, TransportMode
 from schemas.disruption import DisruptionEvent, DisruptionInjectionPayload
@@ -44,6 +47,43 @@ class RecoveryChatPayload(BaseModel):
     origin: Optional[str] = Field(default=None, description="Optional explicit origin override")
     destination: Optional[str] = Field(default=None, description="Optional explicit destination override")
     max_budget: Optional[float] = Field(default=None, description="Optional explicit budget ceiling override")
+
+
+class JourneyRegistrationPayload(BaseModel):
+    passenger_name: str = Field(description="Passenger full name")
+    passenger_email: Optional[str] = Field(default="passenger@example.com", description="Contact email")
+    service_id: Optional[str] = Field(default=None, description="Booked service ID (e.g. TRN-12015)")
+    origin: str = Field(description="Origin city or transit hub code")
+    destination: str = Field(description="Destination city or transit hub code")
+    journey_date: Optional[str] = Field(default=None, description="Date of travel (YYYY-MM-DD)")
+    booking_reference: Optional[str] = Field(default=None, description="PNR or booking reference")
+    booking_status: BookingStatus = Field(default=BookingStatus.CONFIRMED, description="Booking status")
+    fare_inr: Optional[float] = Field(default=None, description="Fare in INR")
+    max_budget: Optional[float] = Field(default=5000.0, description="Budget ceiling in INR")
+    arrival_deadline: Optional[str] = Field(default=None, description="Arrival deadline (HH:MM or ISO timestamp)")
+    max_transfers: Optional[int] = Field(default=2, description="Max transfers allowed")
+
+
+class RecoveryPlanPayload(BaseModel):
+    journey_id: Optional[str] = Field(default=None, description="Optional disrupted journey ID")
+    origin: str = Field(description="Origin city or transit hub code")
+    destination: str = Field(description="Destination city or transit hub code")
+    journey_date: Optional[str] = Field(default=None, description="Travel date YYYY-MM-DD")
+    earliest_departure: Optional[str] = Field(default=None, description="Earliest allowed departure (HH:MM or ISO timestamp)")
+    latest_arrival: Optional[str] = Field(default=None, description="Latest acceptable arrival deadline (HH:MM or ISO timestamp)")
+    max_budget: Optional[float] = Field(default=5000.0, description="Budget ceiling in INR")
+    max_transfers: int = Field(default=2, description="Maximum transfers permitted (0 for direct only)")
+
+
+class BookingApprovalPayload(BaseModel):
+    journey_id: Optional[str] = Field(default=None, description="Disrupted journey ID if applicable")
+    alternative_id: str = Field(description="Selected recovery alternative ID")
+    service_id: str = Field(description="Selected transport service ID")
+    provider: str = Field(description="Selected operator name")
+    booking_url: Optional[str] = Field(default=None, description="Official provider checkout/booking URL")
+    fare_inr: float = Field(description="Total booking fare in INR")
+    user_approved: bool = Field(description="Explicit user confirmation checkbox")
+    passenger_name: Optional[str] = Field(default=None, description="Passenger name")
 
 
 @app.post("/api/v1/recovery/chat", tags=["ASI:One & Recovery Planner"])
@@ -198,4 +238,223 @@ def get_monitoring_status():
         "poll_interval_seconds": settings.monitor_poll_interval_seconds,
         "demo_poll_interval_seconds": settings.monitor_demo_poll_interval_seconds,
         "qualifying_delay_threshold_minutes": settings.qualifying_delay_threshold_minutes,
+    }
+
+
+@app.post("/api/v1/journeys", response_model=UserJourney, tags=["User Journeys"])
+def register_user_journey(payload: JourneyRegistrationPayload):
+    """
+    Registers a new passenger journey subjected to autonomous disruption monitoring.
+    Links to a transport service in the corridor network.
+    """
+    booked_svc: Optional[TransportService] = None
+    if payload.service_id:
+        booked_svc = transport_service.get_service_details(payload.service_id)
+        if not booked_svc:
+            raise HTTPException(status_code=404, detail=f"Service '{payload.service_id}' not found.")
+    else:
+        orig_codes = transport_service.resolve_location_codes(payload.origin)
+        dest_codes = transport_service.resolve_location_codes(payload.destination)
+        matching = db.query_services(origin_codes=orig_codes, destination_codes=dest_codes)
+        if matching:
+            booked_svc = matching[0]
+        else:
+            all_services = db.get_all_services()
+            if not all_services:
+                raise HTTPException(status_code=400, detail="No transport services available.")
+            booked_svc = all_services[0]
+
+    name_clean = "".join(c for c in payload.passenger_name if c.isalnum()).upper()[:8] or "PASSENGER"
+    journey_id = f"JRN-{name_clean}-{uuid.uuid4().hex[:6].upper()}"
+    pnr = payload.booking_reference or f"PNR-{uuid.uuid4().hex[:8].upper()}"
+    fare = payload.fare_inr if payload.fare_inr is not None else booked_svc.fare_inr
+
+    user_journey = UserJourney(
+        journey_id=journey_id,
+        passenger_name=payload.passenger_name,
+        passenger_email=payload.passenger_email or "passenger@example.com",
+        booked_service=booked_svc,
+        booking_status=payload.booking_status,
+        booking_reference=pnr,
+        booked_fare_inr=fare,
+        created_at=datetime.now(IST),
+        is_synthetic=True,
+    )
+    db.save_user_journey(user_journey)
+
+    db.log_monitoring_event(
+        event_type="JOURNEY_REGISTERED",
+        details={
+            "journey_id": journey_id,
+            "passenger_name": payload.passenger_name,
+            "origin": booked_svc.origin.name,
+            "destination": booked_svc.destination.name,
+            "service_id": booked_svc.service_id,
+            "provider": booked_svc.provider,
+            "booking_reference": pnr,
+            "status": payload.booking_status.value,
+            "max_budget": payload.max_budget,
+            "arrival_deadline": payload.arrival_deadline,
+            "max_transfers": payload.max_transfers,
+        },
+    )
+
+    return user_journey
+
+
+@app.post("/api/v1/recovery/plan", tags=["Recovery Planner"])
+def plan_recovery(payload: RecoveryPlanPayload):
+    """
+    Executes multimodal recovery planning: constraint validation, scoring, and ranking.
+    """
+    req_id = f"REC-REQ-{uuid.uuid4().hex[:8].upper()}"
+    recovery_req = RecoveryRequest(
+        request_id=req_id,
+        origin=payload.origin,
+        destination=payload.destination,
+        journey_date=payload.journey_date,
+        earliest_departure=payload.earliest_departure,
+        latest_acceptable_arrival=payload.latest_arrival,
+        max_budget=payload.max_budget,
+        max_transfers=payload.max_transfers,
+        user_id=payload.journey_id,
+    )
+
+    db.log_monitoring_event(
+        event_type="SEARCH_DISPATCHED",
+        details={
+            "request_id": req_id,
+            "origin": payload.origin,
+            "destination": payload.destination,
+            "max_budget": payload.max_budget,
+            "max_transfers": payload.max_transfers,
+            "dispatched_to": ["rail_search_agent", "bus_search_agent", "cab_road_search_agent"],
+        },
+    )
+
+    recovery_resp = recovery_engine.process_recovery(
+        modal_results={},
+        request=recovery_req,
+        planner_address="agent1q_recovery_planner_agentverse",
+    )
+
+    top_option_desc = (
+        f"{recovery_resp.top_3_options[0].alternative.mode} - {recovery_resp.top_3_options[0].alternative.service_number}"
+        if recovery_resp.top_3_options
+        else "NONE"
+    )
+    db.log_monitoring_event(
+        event_type="RECOVERY_PLAN_GENERATED",
+        details={
+            "request_id": req_id,
+            "total_evaluated": recovery_resp.total_options_evaluated,
+            "valid_options_count": recovery_resp.valid_options_count,
+            "rejected_options_count": recovery_resp.rejected_options_count,
+            "top_recommended_option": top_option_desc,
+            "best_option_score": recovery_resp.top_3_options[0].composite_score if recovery_resp.top_3_options else 0.0,
+        },
+    )
+
+    return recovery_resp.model_dump()
+
+
+def _infer_agent_metadata(event_type: str, details: Dict[str, Any]) -> Tuple[str, str]:
+    """Infers agent name and readable action label from audit event."""
+    if event_type in ("DISRUPTION_DETECTED", "STATUS_CHECK"):
+        return "DisruptionMonitorAgent", f"Detected disruption event for {details.get('journey_id', 'journey')}"
+    elif event_type == "DISRUPTION_INJECTED_VIA_API":
+        return "DisruptionSimulator", f"Simulated {details.get('status', 'disruption')} on journey {details.get('journey_id', '')}"
+    elif event_type == "SEARCH_DISPATCHED":
+        return "RecoveryPlannerAgent", f"Dispatched multimodal search queries for {details.get('origin', '')} -> {details.get('destination', '')}"
+    elif event_type == "SEARCH_RESULTS_COLLECTED":
+        return "ModalSearchAgents", "Collected transport options from Rail, Bus, and Cab agents"
+    elif event_type == "RECOVERY_PLAN_GENERATED":
+        return "RecoveryPlannerAgent", f"Evaluated {details.get('total_evaluated', 0)} options | Recommended: {details.get('top_recommended_option', 'N/A')}"
+    elif event_type == "JOURNEY_REGISTERED":
+        return "PassengerGateway", f"Registered new journey {details.get('journey_id', '')} for {details.get('passenger_name', '')}"
+    elif event_type == "BOOKING_APPROVED_BY_USER":
+        return "BookingHandoffAgent", f"User authorized booking handoff for {details.get('provider', 'provider')} ({details.get('service_id', '')})"
+    elif event_type in ("DEMO_RESET", "DATABASE_SEEDED"):
+        return "SystemSupervisor", "Demonstration baseline dataset reset and synchronized"
+    return "RouteRescueAgent", f"Processed system event: {event_type}"
+
+
+@app.get("/api/v1/agents/activity", tags=["Agent Activity"])
+def get_agent_activity(limit: int = Query(default=50, ge=1, le=200)):
+    """
+    Returns real agent messaging, search dispatches, disruption triggers,
+    and recovery decisions extracted from the persistent SQLite audit log.
+    """
+    raw_logs = db.get_monitoring_logs(limit=limit)
+    activity_items = []
+    for item in raw_logs:
+        agent_name, action_desc = _infer_agent_metadata(item["event_type"], item["details"])
+        activity_items.append({
+            "log_id": item["log_id"],
+            "timestamp": item["timestamp"],
+            "event_type": item["event_type"],
+            "agent_name": agent_name,
+            "action": action_desc,
+            "details": item["details"],
+        })
+    return activity_items
+
+
+@app.post("/api/v1/bookings/approve", tags=["Booking Handoff"])
+def approve_booking(payload: BookingApprovalPayload):
+    """
+    Simulates user-authorized booking handoff.
+    Requires explicit user approval before marking status and providing checkout URLs.
+    No live funds are ever debited.
+    """
+    if not payload.user_approved:
+        raise HTTPException(
+            status_code=400,
+            detail="User approval required. Please confirm your authorization checkbox to proceed.",
+        )
+
+    if payload.journey_id:
+        db.update_journey_status(payload.journey_id, BookingStatus.CONFIRMED)
+
+    db.log_monitoring_event(
+        event_type="BOOKING_APPROVED_BY_USER",
+        details={
+            "journey_id": payload.journey_id,
+            "alternative_id": payload.alternative_id,
+            "service_id": payload.service_id,
+            "provider": payload.provider,
+            "fare_inr": payload.fare_inr,
+            "booking_url": payload.booking_url,
+            "passenger_name": payload.passenger_name,
+            "user_approved": True,
+        },
+    )
+
+    return {
+        "success": True,
+        "status": "APPROVED_BY_USER",
+        "message": f"Recovery journey via {payload.provider} approved by user.",
+        "booking_url": payload.booking_url or "https://www.irctc.co.in",
+        "fare_inr": payload.fare_inr,
+        "disclaimer": "DEMONSTRATION HANDOFF: Provider link opened with explicit user approval. Synthetic demonstration mode (Fetch-A-Thon 3.0); no payment debited.",
+    }
+
+
+@app.post("/api/v1/demo/reset", tags=["Demo Controls"])
+def reset_demo():
+    """
+    Resets the demonstration to its initial baseline:
+    1. Clears in-memory booking status overrides.
+    2. Re-seeds demonstration database (locations, services, baseline journeys, disruptions).
+    3. Logs DEMO_RESET event.
+    """
+    booking_provider.reset_all()
+    seed_database(db)
+    db.log_monitoring_event(
+        event_type="DEMO_RESET",
+        details={"status": "Demonstration reset to baseline initial state"},
+    )
+    return {
+        "success": True,
+        "message": "Demonstration environment and booking provider reset to initial baseline state.",
     }

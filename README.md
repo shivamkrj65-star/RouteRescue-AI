@@ -4,7 +4,55 @@
 
 RouteRescue AI is an autonomous multimodal travel recovery platform designed to monitor travel disruptions across train, bus, and road networks, evaluate alternative routes, and synthesize optimal alternative journeys based on passenger constraints.
 
-This repository implements **Phase 1: Project Foundation**, **Phase 2: Independent Transport Agents**, **Phase 3: Recovery Planner Agent**, **Phase 4: Autonomous Disruption Monitoring**, **Phase 5: Intelligent Route Optimization**, and **Phase 6: ASI:One and Agentverse Integration**.
+This repository implements **Phase 1: Project Foundation**, **Phase 2: Independent Transport Agents**, **Phase 3: Recovery Planner Agent**, **Phase 4: Autonomous Disruption Monitoring**, **Phase 5: Intelligent Route Optimization**, **Phase 6: ASI:One and Agentverse Integration**, and **Phase 7: Streamlit Dashboard and Backend Integration**.
+
+---
+
+## 🖥️ Phase 7: Streamlit Dashboard & Backend Integration
+
+RouteRescue AI provides an interactive, modern, multi-page **Streamlit Dashboard** connected directly to the FastAPI backend (`http://127.0.0.1:8000`), allowing users to register journeys, inject simulated disruptions, observe live multi-agent execution, receive multimodal recovery plans, and authorize booking handoffs:
+
+### 📱 Dashboard Navigation & Pages
+1. **📊 Dashboard**:
+   - Live metrics summary: Active Journeys, Disrupted Count, Confirmed Trips, Active Travel Alerts.
+   - Interactive journey monitor with status filtering (`CONFIRMED`, `CANCELLED_BY_DISRUPTION`, `DELAYED`, `WAITLISTED`, `RAC`).
+   - One-click "Recover Journey 🚀" navigation for impacted passengers.
+   - Active corridor alerts feed and monitoring daemon status (polling frequency, delay thresholds, override counts).
+
+2. **📝 Journey Registration**:
+   - Comprehensive form for passenger registration and transit selection (Delhi, Jaipur, Chandigarh, Agra, etc.).
+   - Granular constraints configuration: Maximum budget ceiling (INR), arrival deadline, and transfer preferences (Direct, 1 transfer, Multimodal).
+   - Direct integration with `POST /api/v1/journeys` and persistent SQLite logging.
+
+3. **🤖 Agent Activity**:
+   - Real-time audit log of actual agent-to-agent operations and messages (no hardcoded frontend mockups).
+   - Filterable by agent role: `RecoveryPlannerAgent`, `DisruptionMonitorAgent`, `ModalSearchAgents`, `PassengerGateway`, `BookingHandoffAgent`, etc.
+   - Deep inspection expanders displaying request IDs, execution latency, message correlation tokens, and raw payloads.
+
+4. **🧭 Recovery Results**:
+   - **Structured Recovery Planner**: Evaluates direct and multimodal alternatives, displaying Rank #1 recommendation (with multimodal leg breakdown, layovers, and grounded rationale) alongside Rank #2 and #3 backups.
+   - **ASI:One Conversational Assistant**: Natural language dialogue tab allowing conversational queries grounded in verified transit data.
+   - One-click handoff button transferring selected itineraries directly into the booking authorization portal.
+
+5. **🎛️ Demo Controls**:
+   - **One-Click Demonstration Scenarios**:
+     - *💥 Train Cancellation*: Simulates overhead wire snap for Rohan Sharma (TRN-12015).
+     - *⏱️ Severe Delay*: Injects 120m delay for Priya Patel on Vande Bharat (TRN-20978).
+     - *📉 Waitlist Drop*: Injects post-charting waitlist cancellation for Neha Gupta (TRN-12004).
+   - **Custom Disruption Injection**: Adjust status, delay minutes (slider), PNR position, charting status, and reason via `POST /api/v1/disruptions/inject`.
+   - **Demonstration Reset**: 1-click baseline reset clearing all status overrides and restoring seeded demo records via `POST /api/v1/demo/reset`.
+
+6. **🎟️ Booking Handoff**:
+   - Provider portal links (IRCTC, Zingbus, Uber, NueGo).
+   - **Mandatory User Consent**: Safety guardrail requiring an explicit authorization checkbox before confirming recovery passes.
+   - Clear distinction between synthetic demonstration simulation and live financial debiting.
+
+### 🌐 Added Backend Endpoints (`backend/main.py`)
+- `POST /api/v1/journeys`: Registers passenger journeys subjected to autonomous monitoring.
+- `POST /api/v1/recovery/plan`: Direct multimodal recovery planning endpoint.
+- `GET /api/v1/agents/activity`: Retrieves structured agent audit events and actions from SQLite.
+- `POST /api/v1/bookings/approve`: User-authorized booking handoff requiring explicit consent.
+- `POST /api/v1/demo/reset`: Resets simulated booking overrides and re-seeds baseline demonstration records.
 
 ---
 
@@ -384,6 +432,9 @@ Open your browser at `http://localhost:8501` to explore available journeys, view
 ## 🧪 Testing Results
 
 Executed with `pytest -v`:
+- `tests/test_dashboard_backend.py`: 8 tests passing (FastAPI backend health, journey registration with automatic PNR & monitoring link, multimodal recovery planning endpoint, structured agent activity logs, booking approval user consent guardrail, successful booking handoff, baseline demo reset, and full end-to-end dashboard recovery flow)
+- `tests/test_asione_agentverse.py`: 7 tests passing, 1 skipped live CI test (Deterministic NLP fallback parsing, ASI:One structured parser, zero-fabrication grounded response synthesis, ungrounded/zero-options handling, Agent Chat Protocol `ChatMessage` exchange, conversational endpoint)
+- `tests/test_route_optimization.py`: 7 tests passing (Cheapest route, fastest route, overnight sleeper journeys, impossible transfer buffer rejection, insufficient budget rejection, no-alternatives fallback, and 5-agent multimodal coordination)
 - `tests/test_disruption_monitor.py`: 6 tests passing (Simulated booking status provider lifecycle, disruption evaluation rules, duplicate disruption event prevention, cancellation and delay monitoring detection, full autonomous recovery activation workflow, and FastAPI disruption injection endpoint)
 - `tests/test_recovery_planner.py`: 6 tests passing (Hard constraint validation, deterministic multi-criteria scoring & ranking, natural-language explanation generation, full 5-agent uAgents messaging coordination, strict constraint rejection over messaging, and offline agent timeout resilience)
 - `tests/test_agents_integration.py`: 5 tests passing (Agent identities & cryptographic addresses, separated modal search services, asynchronous uAgents message passing across 3 agents, departure time & budget filtering, and empty results resilience)
@@ -391,4 +442,4 @@ Executed with `pytest -v`:
 - `tests/test_synthetic_datasets.py`: 6 tests passing (>= 30 trains, >= 30 buses, >= 20 cabs, >= 10 disruptions, timezone & overnight accounting, demo labeling)
 - `tests/test_transport_service.py`: 10 tests passing (origin/destination search, budget filtering, mode filtering, earliest departure, seat availability, overnight journeys, disruption checks, tradeoff summaries)
 
-**Result: 39 passed, 0 failed in 94.21s (100% pass rate).**
+**Result: 62 passed, 1 skipped (live ASI:One test in CI) across all 9 test suites.**

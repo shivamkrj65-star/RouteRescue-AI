@@ -360,8 +360,8 @@ class RecoveryEngine:
             if result.success and result.results:
                 all_alternatives.extend(result.results)
 
-        # 1b. Discover multimodal connections if transfers are permitted
-        if self.multimodal_router is not None and request.max_transfers >= 1:
+        # 1b. Discover connections via transit graph (direct or multimodal)
+        if self.multimodal_router is not None and (not all_alternatives or request.max_transfers >= 1):
             try:
                 multimodal_itineraries = self.multimodal_router.find_routes(
                     origin=request.origin,
