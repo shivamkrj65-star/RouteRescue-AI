@@ -8,7 +8,7 @@ import json
 import sqlite3
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 from config.settings import IST, settings
 from schemas.common import (
@@ -484,6 +484,28 @@ class DatabaseManager:
                 is_synthetic=bool(row["is_synthetic"]),
             )
 
+    def list_all_user_journeys(self) -> List[UserJourney]:
+        """Lists all stored user journeys."""
+        with self.get_connection() as conn:
+            rows = conn.execute("SELECT journey_id FROM user_journeys ORDER BY created_at DESC").fetchall()
+            journeys = []
+            for r in rows:
+                j = self.get_user_journey(r["journey_id"])
+                if j:
+                    journeys.append(j)
+            return journeys
+
+    def update_journey_status(self, journey_id: str, new_status: Union[BookingStatus, str]) -> bool:
+        """Updates the booking status of an existing user journey."""
+        status_val = new_status.value if hasattr(new_status, "value") else str(new_status)
+        with self.get_connection() as conn:
+            cursor = conn.execute(
+                "UPDATE user_journeys SET booking_status = ? WHERE journey_id = ?",
+                (status_val, journey_id),
+            )
+            conn.commit()
+            return cursor.rowcount > 0
+
     # -------------------------------------------------------------------------
     # Monitoring Event Log
     # -------------------------------------------------------------------------
@@ -496,3 +518,20 @@ class DatabaseManager:
                 (datetime.now(IST).isoformat(), event_type, json.dumps(details)),
             )
             conn.commit()
+
+    def get_monitoring_logs(self, limit: int = 50) -> List[Dict[str, Any]]:
+        """Retrieves recent monitoring and recovery audit log entries."""
+        with self.get_connection() as conn:
+            rows = conn.execute(
+                "SELECT log_id, timestamp, event_type, details_json FROM monitoring_logs ORDER BY log_id DESC LIMIT ?",
+                (limit,),
+            ).fetchall()
+            logs = []
+            for r in rows:
+                logs.append({
+                    "log_id": r["log_id"],
+                    "timestamp": r["timestamp"],
+                    "event_type": r["event_type"],
+                    "details": json.loads(r["details_json"]),
+                })
+            return logs

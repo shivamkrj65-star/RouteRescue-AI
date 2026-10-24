@@ -1,6 +1,7 @@
 """Shared Pydantic data models for RouteRescue AI."""
 
 from schemas.agent_messages import (
+    DisruptionInjectionRequest,
     RankedAlternative,
     RecoveryRequest,
     RecoveryResponse,
@@ -52,4 +53,5 @@ __all__ = [
     "RecoveryRequest",
     "RankedAlternative",
     "RecoveryResponse",
+    "DisruptionInjectionRequest",
 ]

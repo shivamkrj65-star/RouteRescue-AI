@@ -42,3 +42,13 @@ class DisruptionEvent(BaseModel):
         default="DEMONSTRATION SYNTHETIC DATASET (Fetch-A-Thon 3.0)",
         description="Demonstration data transparency label",
     )
+
+
+class DisruptionInjectionPayload(BaseModel):
+    """API payload for injecting a simulated disruption into the monitoring engine."""
+    journey_id: str = Field(description="Target journey ID to disrupt e.g. JRN-PRIYA-1002")
+    status: str = Field(description="New status e.g. CANCELLED, DELAYED, DROPPED_CHART_PREPARED, WAITLISTED")
+    delay_minutes: int = Field(default=0, ge=0, description="Delay duration in minutes if applicable")
+    pnr_position: Optional[str] = Field(default=None, description="PNR position update e.g. WL 5, RAC 1, DROPPED")
+    chart_prepared: bool = Field(default=False, description="Whether reservation chart has been finalized")
+    reason: str = Field(default="Simulated disruption injection", description="Cause or operational explanation")

@@ -74,6 +74,19 @@ class Settings(BaseModel):
             endpoint="http://127.0.0.1:8004/submit",
         )
     )
+    monitor_agent: AgentEndpointConfig = Field(
+        default_factory=lambda: AgentEndpointConfig(
+            name="disruption_monitor_agent",
+            seed="routerescue_disruption_monitor_seed_v1",
+            port=8005,
+            endpoint="http://127.0.0.1:8005/submit",
+        )
+    )
+
+    # Monitoring Settings
+    monitor_poll_interval_seconds: float = 60.0
+    monitor_demo_poll_interval_seconds: float = 1.0
+    qualifying_delay_threshold_minutes: int = 45
 
     # Default timeout for agent messaging in seconds
     agent_message_timeout_seconds: float = 10.0

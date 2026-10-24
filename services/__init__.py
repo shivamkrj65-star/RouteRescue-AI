@@ -1,5 +1,7 @@
 """Services module for RouteRescue AI."""
 
+from services.booking_provider import SimulatedBookingProvider, SimulatedBookingStatus
+from services.disruption_evaluator import DisruptionEvaluator
 from services.modal_search import (
     BusSearchService,
     CabRoadSearchService,
@@ -14,4 +16,7 @@ __all__ = [
     "BusSearchService",
     "CabRoadSearchService",
     "RecoveryEngine",
+    "SimulatedBookingProvider",
+    "SimulatedBookingStatus",
+    "DisruptionEvaluator",
 ]

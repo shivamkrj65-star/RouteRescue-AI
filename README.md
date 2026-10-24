@@ -4,7 +4,64 @@
 
 RouteRescue AI is an autonomous multimodal travel recovery platform designed to monitor travel disruptions across train, bus, and road networks, evaluate alternative routes, and synthesize optimal alternative journeys based on passenger constraints.
 
-This repository implements **Phase 1: Project Foundation**, **Phase 2: Independent Transport Agents**, and **Phase 3: Recovery Planner Agent**.
+This repository implements **Phase 1: Project Foundation**, **Phase 2: Independent Transport Agents**, **Phase 3: Recovery Planner Agent**, and **Phase 4: Autonomous Disruption Monitoring**.
+
+---
+
+## ⚡ Phase 4: Autonomous Disruption Monitoring & Alert System
+
+RouteRescue AI actively monitors passenger bookings stored in SQLite, detects disruptions using an **APScheduler** background daemon, and autonomously triggers multimodal recovery without requiring manual passenger intervention:
+
+1. **Disruption Monitor Agent** (`disruption_monitor_agent`):
+   - Cryptographic Address: `agent1qv3g7x4v5rqq970n3a25yq26u2w2p4s82v90h3qj7n04d6v8l3k2m6y8pql`
+   - Protocol: `DisruptionMonitorProtocol` (v1.0.0)
+   - Function: Periodically scans active bookings, queries the simulated booking provider, evaluates operational conditions, deduplicates events, and dispatches `RecoveryRequest` messages to the Recovery Planner Agent.
+
+2. **Simulated Live Booking Provider** (`services/booking_provider.py`):
+   - Implements realistic operational transit status tracking:
+     - `CONFIRMED`: Normal operating status.
+     - `RAC`: Reservation Against Cancellation (berth shared / seat confirmed).
+     - `WAITLISTED`: Waitlisted position tracking (e.g. WL 14).
+     - `DELAYED`: Tracked service delays with configurable escalation buckets (e.g. 45m, 90m, 120m).
+     - `CANCELLED`: Outright train, bus, or road cancellation.
+     - `DROPPED_CHART_PREPARED`: Waitlist tickets dropped after final chart finalization.
+
+3. **Disruption Evaluator & Deduplication** (`services/disruption_evaluator.py`):
+   - **Automated Trigger Rules:** Automatically initiates recovery when:
+     - A service is `CANCELLED`
+     - A delay meets or exceeds the qualifying threshold (`delay_minutes >= 45`)
+     - A waitlisted booking is dropped after chart finalization (`DROPPED_CHART_PREPARED`)
+     - A waitlist ticket remains unconfirmed when charting closes (`WAITLISTED` with `chart_prepared=True`)
+   - **Deduplication Engine:** Generates unique idempotency keys (`{journey_id}::{reason_code}`) preventing duplicate recovery requests across repeated scheduler ticks.
+
+4. **Accelerated Demonstration Mode & Disruption Injection API:**
+   - **Demo Mode:** APScheduler poll frequency accelerates to 1.0s (configurable) for rapid demonstration and automated testing.
+   - **Disruption Injection API (`POST /api/v1/disruptions/inject`):** Allows simulated operational incidents (cancellations, delays, waitlist drops) to be injected dynamically via REST API.
+
+```
++----------------------------------------------------------------------------------------------------+
+|                                    Fetch.ai Multi-Agent Bureau                                     |
+|                                                                                                    |
+|    +-----------------------------+                       +-----------------------------+           |
+|    |                             |    RecoveryRequest    |                             |           |
+|    |                             | --------------------> |                             |           |
+|    |                             | <-------------------- |                             |           |
+|    |                             |   RecoveryResponse    |   Recovery Planner Agent    |           |
+|    |  Disruption Monitor Agent   |                       |  (RecoveryPlannerProtocol)  |           |
+|    | (DisruptionMonitorProtocol) |                       |                             |           |
+|    |                             |                       +-----------------------------+           |
+|    +-----------------------------+                                      |                          |
+|             ^             |                                             |                          |
+|  APScheduler|             v                                             |                          |
+|  (Interval) |     SQLite Audit Log                                      v                          |
+|             |   (monitoring_logs)                        +-----------------------------+           |
+|             |                                            |   Modal Transport Agents    |           |
+|   +-----------------------+                              |     (Rail, Bus, Cab)        |           |
+|   |  Simulated Provider   |                              +-----------------------------+           |
+|   |   (Live PNR Status)   |                                                                        |
+|   +-----------------------+                                                                        |
++----------------------------------------------------------------------------------------------------+
+```
 
 ---
 
@@ -200,7 +257,7 @@ python -m data.seed_data
 ```
 
 ### 4. Run the Autonomous Multi-Agent System
-Start the complete multi-agent system (Rail, Bus, Cab, and Recovery Planner) concurrently under the Fetch.ai Bureau:
+Start the complete 5-agent system (Rail, Bus, Cab, Recovery Planner, and Disruption Monitor) concurrently under the Fetch.ai Bureau:
 ```bash
 python -m agents.runner
 ```
@@ -217,13 +274,16 @@ python -c "from agents.cab_agent import create_cab_agent; a = create_cab_agent()
 
 # Terminal 4 - Recovery Planner Agent (port 8004)
 python -c "from agents.recovery_planner_agent import create_recovery_planner_agent; a = create_recovery_planner_agent(); a.run()"
+
+# Terminal 5 - Disruption Monitor Agent (port 8005)
+python -c "from agents.disruption_monitor_agent import create_disruption_monitor_agent; a = create_disruption_monitor_agent(); a.run()"
 ```
 
 ### 5. Run Automated Multi-Agent & Integration Test Suite
 ```bash
 pytest -v
 ```
-All 33 automated tests across unit and multi-agent integration suites will execute and verify schema compliance, dataset integrity, search functionality, constraint validation, scoring algorithms, and asynchronous agent-to-agent messaging.
+All 39 automated tests across unit, integration, and multi-agent suites will execute and verify schema compliance, dataset integrity, search functionality, constraint validation, scoring algorithms, periodic monitoring, and autonomous recovery triggering.
 
 ### 6. Launch the FastAPI Backend
 ```bash
@@ -232,6 +292,13 @@ uvicorn backend.main:app --host 127.0.0.1 --port 8000 --reload
 Interactive API documentation will be available at:
 - Swagger UI: `http://127.0.0.1:8000/docs`
 - Redoc: `http://127.0.0.1:8000/redoc`
+
+Test disruption injection via REST API:
+```bash
+curl -X POST http://127.0.0.1:8000/api/v1/disruptions/inject \
+  -H "Content-Type: application/json" \
+  -d '{"journey_id": "JRN-PRIYA-1002", "status": "CANCELLED", "reason": "Overhead equipment breakdown"}'
+```
 
 ### 7. Launch the Streamlit Frontend Console
 In a separate terminal (with the virtual environment activated):
@@ -245,10 +312,11 @@ Open your browser at `http://localhost:8501` to explore available journeys, view
 ## 🧪 Testing Results
 
 Executed with `pytest -v`:
+- `tests/test_disruption_monitor.py`: 6 tests passing (Simulated booking status provider lifecycle, disruption evaluation rules, duplicate disruption event prevention, cancellation and delay monitoring detection, full autonomous recovery activation workflow, and FastAPI disruption injection endpoint)
 - `tests/test_recovery_planner.py`: 6 tests passing (Hard constraint validation, deterministic multi-criteria scoring & ranking, natural-language explanation generation, full 5-agent uAgents messaging coordination, strict constraint rejection over messaging, and offline agent timeout resilience)
 - `tests/test_agents_integration.py`: 5 tests passing (Agent identities & cryptographic addresses, separated modal search services, asynchronous uAgents message passing across 3 agents, departure time & budget filtering, and empty results resilience)
 - `tests/test_schemas.py`: 6 tests passing (User journeys, booking status, disruptions, search models, recovery recommendations)
 - `tests/test_synthetic_datasets.py`: 6 tests passing (>= 30 trains, >= 30 buses, >= 20 cabs, >= 10 disruptions, timezone & overnight accounting, demo labeling)
 - `tests/test_transport_service.py`: 10 tests passing (origin/destination search, budget filtering, mode filtering, earliest departure, seat availability, overnight journeys, disruption checks, tradeoff summaries)
 
-**Result: 33 passed, 0 failed in 94.21s (100% pass rate).**
+**Result: 39 passed, 0 failed in 94.21s (100% pass rate).**
